@@ -196,10 +196,28 @@ document.addEventListener('DOMContentLoaded', function() {
                             webgl: (() => {
                                 try {
                                     const canvas = document.createElement('canvas');
-                                    const gl = canvas.getContext('webgl');
+                                    
+                                    // Try different WebGL context types
+                                    let gl = canvas.getContext('webgl') || 
+                                            canvas.getContext('webgl2') || 
+                                            canvas.getContext('experimental-webgl');
+                                    
                                     if (!gl) {
                                         if (window.lulzactiveDebug) {
                                             console.log('lulzactive: WebGL test - No WebGL context available');
+                                            console.log('lulzactive: WebGL test - Trying to check WebGL support...');
+                                            
+                                            // Check if WebGL is supported at all
+                                            const testCanvas = document.createElement('canvas');
+                                            const testGl = testCanvas.getContext('webgl') || 
+                                                          testCanvas.getContext('webgl2') || 
+                                                          testCanvas.getContext('experimental-webgl');
+                                            
+                                            if (testGl) {
+                                                console.log('lulzactive: WebGL test - WebGL is supported but context creation failed');
+                                            } else {
+                                                console.log('lulzactive: WebGL test - WebGL is not supported in this browser/context');
+                                            }
                                         }
                                         return false;
                                     }
@@ -213,6 +231,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                         console.log('lulzactive: WebGL test - Renderer:', renderer);
                                         console.log('lulzactive: WebGL test - VENDOR constant:', gl.VENDOR);
                                         console.log('lulzactive: WebGL test - Protection active:', !!window.AntiFingerprintUtils);
+                                        console.log('lulzactive: WebGL test - Context type:', gl.getParameter(gl.VERSION));
                                     }
                                     
                                     const result = vendor === 'Google Inc.';
@@ -224,6 +243,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 } catch (e) {
                                     if (window.lulzactiveDebug) {
                                         console.log('lulzactive: WebGL test error:', e);
+                                        console.log('lulzactive: WebGL test - Error details:', e.message);
                                     }
                                     return false;
                                 }
@@ -295,6 +315,32 @@ document.addEventListener('DOMContentLoaded', function() {
                             window.AntiFingerprintUtils.setDebugMode(window.lulzactiveDebug);
                         }
                         
+                        // Run WebGL diagnostic if debug mode is enabled
+                        if (window.lulzactiveDebug) {
+                            console.log('lulzactive: Running WebGL diagnostic...');
+                            
+                            // Check WebGL support
+                            const canvas = document.createElement('canvas');
+                            const webgl = canvas.getContext('webgl');
+                            const webgl2 = canvas.getContext('webgl2');
+                            const experimental = canvas.getContext('experimental-webgl');
+                            
+                            console.log('lulzactive: WebGL support check:');
+                            console.log('- WebGL 1.0:', !!webgl);
+                            console.log('- WebGL 2.0:', !!webgl2);
+                            console.log('- Experimental WebGL:', !!experimental);
+                            
+                            if (webgl) {
+                                console.log('- WebGL 1.0 Vendor:', webgl.getParameter(webgl.VENDOR));
+                                console.log('- WebGL 1.0 Renderer:', webgl.getParameter(webgl.RENDERER));
+                            }
+                            
+                            if (webgl2) {
+                                console.log('- WebGL 2.0 Vendor:', webgl2.getParameter(webgl2.VENDOR));
+                                console.log('- WebGL 2.0 Renderer:', webgl2.getParameter(webgl2.RENDERER));
+                            }
+                        }
+                        
                         return 'Debug mode ' + (window.lulzactiveDebug ? 'enabled' : 'disabled');
                     }
                 }).then(results => {
@@ -360,14 +406,37 @@ document.addEventListener('DOMContentLoaded', function() {
                             webgl: (() => {
                                 try {
                                     const canvas = document.createElement('canvas');
-                                    const gl = canvas.getContext('webgl');
-                                    return gl ? {
+                                    
+                                    // Try different WebGL context types
+                                    let gl = canvas.getContext('webgl') || 
+                                            canvas.getContext('webgl2') || 
+                                            canvas.getContext('experimental-webgl');
+                                    
+                                    if (!gl) {
+                                        return {
+                                            error: 'No WebGL context available',
+                                            supported: false,
+                                            contextTypes: {
+                                                webgl: !!canvas.getContext('webgl'),
+                                                webgl2: !!canvas.getContext('webgl2'),
+                                                experimental: !!canvas.getContext('experimental-webgl')
+                                            }
+                                        };
+                                    }
+                                    
+                                    return {
                                         vendor: gl.getParameter(gl.VENDOR),
                                         renderer: gl.getParameter(gl.RENDERER),
-                                        version: gl.getParameter(gl.VERSION)
-                                    } : null;
+                                        version: gl.getParameter(gl.VERSION),
+                                        supported: true,
+                                        contextType: gl.getParameter(gl.VERSION).includes('WebGL 2') ? 'webgl2' : 'webgl'
+                                    };
                                 } catch (e) {
-                                    return null;
+                                    return {
+                                        error: e.message,
+                                        supported: false,
+                                        exception: e.toString()
+                                    };
                                 }
                             })(),
                             canvas: (() => {
