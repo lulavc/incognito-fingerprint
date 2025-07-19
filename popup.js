@@ -49,6 +49,21 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // Helper function to check if script injection is allowed
+    function canInjectScript(tab) {
+        return tab && tab.url && 
+               !tab.url.startsWith('chrome-extension://') && 
+               !tab.url.startsWith('chrome://') && 
+               !tab.url.startsWith('moz-extension://') &&
+               !tab.url.startsWith('about:') &&
+               !tab.url.startsWith('edge://');
+    }
+
+    // Helper function to show restricted URL message
+    function showRestrictedUrlMessage() {
+        alert('This feature cannot run on browser extension pages.\n\nPlease navigate to a regular website (like google.com) and try again.');
+    }
+
     // Initialize popup
     function initializePopup() {
         updateStatus();
@@ -95,6 +110,12 @@ document.addEventListener('DOMContentLoaded', function() {
         // Get stats from current tab
         chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
             if (tabs[0]) {
+                if (!canInjectScript(tabs[0])) {
+                    overridesCount.textContent = 'N/A';
+                    trackersBlocked.textContent = 'N/A';
+                    return;
+                }
+                
                 chrome.scripting.executeScript({
                     target: {tabId: tabs[0].id},
                     func: () => {
@@ -133,6 +154,12 @@ document.addEventListener('DOMContentLoaded', function() {
     function checkUserscriptStatus() {
         chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
             if (tabs[0]) {
+                if (!canInjectScript(tabs[0])) {
+                    userscriptStatus.textContent = '🟡 Userscript: N/A (Extension Page)';
+                    userscriptStatus.className = 'userscript-status userscript-inactive';
+                    return;
+                }
+                
                 chrome.scripting.executeScript({
                     target: {tabId: tabs[0].id},
                     func: () => {
@@ -202,6 +229,11 @@ document.addEventListener('DOMContentLoaded', function() {
     function testProtection() {
         chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
             if (tabs[0]) {
+                if (!canInjectScript(tabs[0])) {
+                    showRestrictedUrlMessage();
+                    return;
+                }
+                
                 chrome.scripting.executeScript({
                     target: {tabId: tabs[0].id},
                     func: () => {
@@ -315,6 +347,11 @@ document.addEventListener('DOMContentLoaded', function() {
     function toggleDebugMode() {
         chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
             if (tabs[0]) {
+                if (!canInjectScript(tabs[0])) {
+                    showRestrictedUrlMessage();
+                    return;
+                }
+                
                 chrome.scripting.executeScript({
                     target: {tabId: tabs[0].id},
                     func: () => {
@@ -404,6 +441,11 @@ document.addEventListener('DOMContentLoaded', function() {
     function exportLogs() {
         chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
             if (tabs[0]) {
+                if (!canInjectScript(tabs[0])) {
+                    showRestrictedUrlMessage();
+                    return;
+                }
+                
                 chrome.scripting.executeScript({
                     target: {tabId: tabs[0].id},
                     func: () => {
