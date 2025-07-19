@@ -1,10 +1,12 @@
 {
   "name": "incognito-fingerprint",
-  "version": "0.10.0",
+  "version": "0.10.1",
   "description": "Advanced anti-fingerprinting browser extension and userscript",
   "main": "background.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "echo 'No build process needed'",
+    "test": "echo 'No tests specified'",
+    "lint": "eslint *.js"
   },
   "keywords": [
     "anti-fingerprinting",
@@ -12,11 +14,20 @@
     "browser-extension",
     "userscript",
     "chrome",
-    "firefox"
+    "firefox",
+    "incognito"
   ],
   "author": "lulzactive",
   "license": "MIT",
   "devDependencies": {
     "eslint": "^8.0.0"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lulzactive/incognito-fingerprint.git"
+  },
+  "bugs": {
+    "url": "https://github.com/lulzactive/incognito-fingerprint/issues"
+  },
+  "homepage": "https://github.com/lulzactive/incognito-fingerprint#readme"
 }

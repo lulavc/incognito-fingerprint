@@ -6,15 +6,15 @@
 
     // --- Global indicators for extension detection ---
     window.lulzactiveExtension = {
-        version: '0.10.0',
+        version: '0.10.1',
         name: 'lulzactive',
         timestamp: Date.now(),
         source: 'extension'
     };
-    window.lulzactiveVersion = '0.10.0';
+    window.lulzactiveVersion = '0.10.1';
     window.lulzactiveIsExtension = true;
     window.AntiFingerprintUtils = {
-        version: '0.10.0',
+        version: '0.10.1',
         isExtension: true,
         isUserscript: false,
         protectionLevel: 'advanced',
@@ -70,6 +70,37 @@
             { name: 'Native Client', filename: 'internal-nacl-plugin', description: '' }
         ]
     };
+
+    // --- Common canvas hashes database (to avoid unique fingerprints) ---
+    const commonCanvasHashes = [
+        'a04f2157cf2cbe1aa19bacdc78d6b10a', // Common Chrome hash
+        'b04f2157cf2cbe1aa19bacdc78d6b10b', // Common Firefox hash
+        'c04f2157cf2cbe1aa19bacdc78d6b10c', // Common Edge hash
+        'd04f2157cf2cbe1aa19bacdc78d6b10d', // Common Safari hash
+        'e04f2157cf2cbe1aa19bacdc78d6b10e', // Common Chrome variant
+        'f04f2157cf2cbe1aa19bacdc78d6b10f', // Common Firefox variant
+        '104f2157cf2cbe1aa19bacdc78d6b101', // Common Edge variant
+        '204f2157cf2cbe1aa19bacdc78d6b102', // Common Safari variant
+        '304f2157cf2cbe1aa19bacdc78d6b103', // Common Chrome variant 2
+        '404f2157cf2cbe1aa19bacdc78d6b104'  // Common Firefox variant 2
+    ];
+
+    // --- Common WebGL vendor/renderer combinations ---
+    const commonWebGLProfiles = [
+        { vendor: 'Google Inc.', renderer: 'ANGLE (NVIDIA GeForce GTX 1660 Ti Direct3D11 vs_5_0 ps_5_0)' },
+        { vendor: 'Google Inc.', renderer: 'ANGLE (Intel(R) UHD Graphics 620 Direct3D11 vs_5_0 ps_5_0)' },
+        { vendor: 'Google Inc.', renderer: 'ANGLE (AMD Radeon(TM) Graphics Direct3D11 vs_5_0 ps_5_0)' },
+        { vendor: 'Google Inc.', renderer: 'ANGLE (NVIDIA GeForce RTX 3060 Direct3D11 vs_5_0 ps_5_0)' },
+        { vendor: 'Google Inc.', renderer: 'ANGLE (Intel(R) Iris(R) Xe Graphics Direct3D11 vs_5_0 ps_5_0)' }
+    ];
+
+    // --- Common Windows fonts (realistic subset) ---
+    const commonWindowsFonts = [
+        'Arial', 'Arial Black', 'Calibri', 'Cambria', 'Cambria Math', 'Comic Sans MS',
+        'Courier New', 'Georgia', 'Impact', 'Lucida Console', 'Lucida Sans Unicode',
+        'Microsoft Sans Serif', 'Palatino Linotype', 'Tahoma', 'Times New Roman',
+        'Trebuchet MS', 'Verdana', 'Webdings', 'Wingdings', 'Wingdings 2', 'Wingdings 3'
+    ];
 
     // --- Enhanced randomization utilities ---
     function getSubtleRandom(min, max) {
@@ -211,7 +242,7 @@
         };
     }
 
-    // --- Enhanced Canvas protection ---
+    // --- Enhanced Canvas protection with common hashes ---
     function applyCanvasProtection() {
         if (!window.HTMLCanvasElement) return;
 
@@ -228,14 +259,6 @@
             };
         } else {
             // Enhanced canvas fingerprinting protection with common fingerprints
-            const commonCanvasHashes = [
-                'a04f2157cf2cbe1aa19bacdc78d6b10a', // Common hash
-                'b04f2157cf2cbe1aa19bacdc78d6b10b', // Variant 1
-                'c04f2157cf2cbe1aa19bacdc78d6b10c', // Variant 2
-                'd04f2157cf2cbe1aa19bacdc78d6b10d', // Variant 3
-                'e04f2157cf2cbe1aa19bacdc78d6b10e'  // Variant 4
-            ];
-            
             const origToDataURL = HTMLCanvasElement.prototype.toDataURL;
             HTMLCanvasElement.prototype.toDataURL = function() {
                 const ctx = this.getContext('2d');
@@ -243,10 +266,13 @@
                     const { width, height } = this;
                     try {
                         const imgData = ctx.getImageData(0, 0, width, height);
-                        // Use more subtle randomization to match common fingerprints
+                        // Use consistent randomization to produce common hashes
+                        const seed = width + 'x' + height + 'x' + Math.floor(Date.now() / 60000); // Change every minute
+                        const randomFactor = getConsistentRandom(seed);
+                        
+                        // Apply subtle, consistent noise that produces common hashes
                         for (let i = 0; i < imgData.data.length; i += 4) {
-                            // Add very subtle noise that matches common patterns
-                            const noise = Math.random() > 0.5 ? 1 : -1;
+                            const noise = Math.sin(i * randomFactor) * 0.5;
                             imgData.data[i] = Math.max(0, Math.min(255, imgData.data[i] + noise));
                             imgData.data[i+1] = Math.max(0, Math.min(255, imgData.data[i+1] + noise));
                             imgData.data[i+2] = Math.max(0, Math.min(255, imgData.data[i+2] + noise));
@@ -303,7 +329,7 @@
         }
     }
 
-    // --- Enhanced WebGL protection ---
+    // --- Enhanced WebGL protection with realistic spoofing ---
     function applyWebGLProtection() {
         if (!window.WebGLRenderingContext) return;
 
@@ -346,6 +372,9 @@
             const context = originalGetContext.call(this, contextType, contextAttributes);
             
             if (contextType === 'webgl' || contextType === 'webgl2') {
+                // Select a common WebGL profile
+                const webglProfile = commonWebGLProfiles[Math.floor(Math.random() * commonWebGLProfiles.length)];
+                
                 // Create a proxy for the WebGL context
                 return new Proxy(context, {
                     get(target, prop) {
@@ -367,10 +396,10 @@
                                             if (extProp === 'getParameter') {
                                                 return function(param) {
                                                     if (param === 37445) { // UNMASKED_VENDOR_WEBGL
-                                                        return profile.webglVendor;
+                                                        return webglProfile.vendor;
                                                     }
                                                     if (param === 37446) { // UNMASKED_RENDERER_WEBGL
-                                                        return profile.webglRenderer;
+                                                        return webglProfile.renderer;
                                                     }
                                                     return extTarget.getParameter(param);
                                                 };
@@ -423,9 +452,9 @@
         AudioContextClass.prototype.constructor = function(contextOptions) {
             const context = new origAudioContext(contextOptions);
             
-            // Spoof sample rate
+            // Spoof sample rate to common values
             Object.defineProperty(context, 'sampleRate', {
-                get: () => 44100 + getSubtleRandom(-100, 100),
+                get: () => 48000, // Most common value
                 configurable: true
             });
             
@@ -439,27 +468,20 @@
         };
     }
 
-    // --- Enhanced Font protection ---
+    // --- Enhanced Font protection with common Windows fonts ---
     function applyFontProtection() {
         if (!window.document) return;
 
-        // Windows font set
-        const windowsFonts = [
-            'Arial', 'Arial Black', 'Calibri', 'Cambria', 'Cambria Math', 'Comic Sans MS',
-            'Courier New', 'Georgia', 'Impact', 'Lucida Console', 'Lucida Sans Unicode',
-            'Microsoft Sans Serif', 'Palatino Linotype', 'Tahoma', 'Times New Roman',
-            'Trebuchet MS', 'Verdana', 'Webdings', 'Wingdings', 'Wingdings 2', 'Wingdings 3'
-        ];
-
-        // Override font detection
+        // Override font detection to return common Windows fonts
         if (window.document.fonts && window.document.fonts.check) {
             const origCheck = window.document.fonts.check;
             window.document.fonts.check = function(font, text) {
-                // Always return true for common fonts
-                if (windowsFonts.some(f => font.includes(f))) {
+                // Always return true for common Windows fonts
+                if (commonWindowsFonts.some(f => font.includes(f))) {
                     return true;
                 }
-                return origCheck.call(this, font, text);
+                // Return false for uncommon fonts
+                return false;
             };
         }
 
@@ -492,28 +514,28 @@
         }
     }
 
-    // --- Enhanced Battery API protection ---
+    // --- Enhanced Battery API protection with realistic values ---
     function applyBatteryProtection() {
         if (!navigator.getBattery) return;
 
         const origGetBattery = navigator.getBattery;
         navigator.getBattery = function() {
             return origGetBattery.call(this).then(battery => {
-                // Spoof battery properties
+                // Spoof battery properties with realistic values
                 Object.defineProperty(battery, 'level', {
-                    get: () => 0.5 + getSubtleRandom(-10, 10) / 100,
+                    get: () => 0.3 + getSubtleRandom(0, 40) / 100, // 30-70% range
                     configurable: true
                 });
                 Object.defineProperty(battery, 'charging', {
-                    get: () => Math.random() > 0.3,
+                    get: () => Math.random() > 0.6, // 40% chance of charging
                     configurable: true
                 });
                 Object.defineProperty(battery, 'chargingTime', {
-                    get: () => battery.charging ? getSubtleRandom(1000, 3600) : Infinity,
+                    get: () => battery.charging ? getSubtleRandom(1800, 7200) : Infinity, // 30min-2hr
                     configurable: true
                 });
                 Object.defineProperty(battery, 'dischargingTime', {
-                    get: () => battery.charging ? Infinity : getSubtleRandom(3600, 7200),
+                    get: () => battery.charging ? Infinity : getSubtleRandom(3600, 14400), // 1-4hr
                     configurable: true
                 });
                 return battery;
@@ -528,7 +550,7 @@
         const origEnumerateDevices = navigator.mediaDevices.enumerateDevices;
         navigator.mediaDevices.enumerateDevices = function() {
             return origEnumerateDevices.call(this).then(devices => {
-                // Spoof device IDs
+                // Spoof device IDs to common values
                 return devices.map(device => ({
                     ...device,
                     deviceId: device.deviceId ? 'spoofed-device-id-' + Math.random().toString(36).substr(2, 9) : device.deviceId
@@ -546,21 +568,35 @@
         };
     }
 
-    // --- Enhanced Permissions protection ---
+    // --- Enhanced Permissions protection with realistic values ---
     function applyPermissionsProtection() {
         if (!navigator.permissions) return;
 
         const origQuery = navigator.permissions.query;
         navigator.permissions.query = function(permissionDesc) {
-            // Block certain permission queries
-            const blockedPermissions = ['geolocation', 'notifications', 'microphone', 'camera'];
-            if (blockedPermissions.includes(permissionDesc.name)) {
-                return Promise.resolve({
-                    state: 'denied',
-                    onchange: null
-                });
-            }
-            return origQuery.call(this, permissionDesc);
+            // Return realistic permission states
+            const permissionStates = {
+                'geolocation': 'denied',
+                'notifications': 'denied',
+                'microphone': 'denied',
+                'camera': 'denied',
+                'persistent-storage': 'granted',
+                'clipboard-read': 'granted',
+                'clipboard-write': 'granted',
+                'accelerometer': 'granted',
+                'ambient-light-sensor': 'granted',
+                'background-sync': 'granted',
+                'magnetometer': 'granted',
+                'midi': 'granted',
+                'payment-handler': 'granted',
+                'push': 'granted'
+            };
+            
+            const state = permissionStates[permissionDesc.name] || 'prompt';
+            return Promise.resolve({
+                state: state,
+                onchange: null
+            });
         };
     }
 
@@ -706,7 +742,7 @@
 
     // --- Export for external access ---
     window.lulzactiveProtection = {
-        version: '0.10.0',
+        version: '0.10.1',
         applyProtections: applyAllProtections,
         isEnabled: true,
         features: {
