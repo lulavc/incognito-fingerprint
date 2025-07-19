@@ -180,8 +180,8 @@
                 const imgData = origGetImageData.call(this, x, y, w, h);
                 // Add very subtle randomization to getImageData
                 for (let i = 0; i < imgData.data.length; i += 4) {
-                    // Only modify every 10th pixel to make it less detectable
-                    if (i % 40 === 0) {
+                    // Only modify every 50th pixel to make it much less detectable
+                    if (i % 200 === 0) {
                         imgData.data[i] = Math.max(0, Math.min(255, imgData.data[i] + (Math.random() > 0.5 ? 1 : -1)));
                         imgData.data[i+1] = Math.max(0, Math.min(255, imgData.data[i+1] + (Math.random() > 0.5 ? 1 : -1)));
                         imgData.data[i+2] = Math.max(0, Math.min(255, imgData.data[i+2] + (Math.random() > 0.5 ? 1 : -1)));
@@ -190,7 +190,7 @@
                 return imgData;
             };
 
-            // Enhanced canvas text/rect randomization (more subtle)
+            // Enhanced canvas text/rect randomization (very subtle)
             if (CANVAS_TEXT_RANDOMIZE) {
                 const methods = ['fillText', 'strokeText', 'fillRect', 'strokeRect', 'clearRect'];
                 methods.forEach(method => {
@@ -198,14 +198,14 @@
                     CanvasRenderingContext2D.prototype[method] = function(...args) {
                         if (method.includes('Text')) {
                             // Add very subtle randomization for text positioning
-                            args[1] += (Math.random() - 0.5) * 0.1; // X position ±0.05
-                            args[2] += (Math.random() - 0.5) * 0.1; // Y position ±0.05
+                            args[1] += (Math.random() - 0.5) * 0.05; // X position ±0.025
+                            args[2] += (Math.random() - 0.5) * 0.05; // Y position ±0.025
                         } else if (method.includes('Rect')) {
                             // Add very subtle randomization for rectangles
-                            args[0] += (Math.random() - 0.5) * 0.1; // X position ±0.05
-                            args[1] += (Math.random() - 0.5) * 0.1; // Y position ±0.05
-                            if (args.length > 2) args[2] *= 1 + (Math.random() - 0.5) * 0.001; // W ±0.05%
-                            if (args.length > 3) args[3] *= 1 + (Math.random() - 0.5) * 0.001; // H ±0.05%
+                            args[0] += (Math.random() - 0.5) * 0.05; // X position ±0.025
+                            args[1] += (Math.random() - 0.5) * 0.05; // Y position ±0.025
+                            if (args.length > 2) args[2] *= 1 + (Math.random() - 0.5) * 0.0005; // W ±0.025%
+                            if (args.length > 3) args[3] *= 1 + (Math.random() - 0.5) * 0.0005; // H ±0.025%
                         }
                         return orig.apply(this, args);
                     };
@@ -229,30 +229,35 @@
     function applyWebGLProtection() {
         if (!window.WebGLRenderingContext) return;
 
-        // Enhanced WebGL protection with common fingerprints
+        // Simple and reliable WebGL protection
         const origGetParameter = WebGLRenderingContext.prototype.getParameter;
         WebGLRenderingContext.prototype.getParameter = function(param) {
-            // 37445: UNMASKED_VENDOR_WEBGL, 37446: UNMASKED_RENDERER_WEBGL
-            if (param === 37445) return profile.webglVendor;
-            if (param === 37446) return profile.webglRenderer;
+            // Spoof vendor and renderer for all WebGL contexts
+            if (param === 0x1F00) return profile.webglVendor; // VENDOR
+            if (param === 0x1F01) return profile.webglRenderer; // RENDERER
+            if (param === 37445) return profile.webglVendor; // UNMASKED_VENDOR_WEBGL
+            if (param === 37446) return profile.webglRenderer; // UNMASKED_RENDERER_WEBGL
             
-            // 0x1F00: VENDOR, 0x1F01: RENDERER - also spoof these for compatibility
-            if (param === 0x1F00) return profile.webglVendor;
-            if (param === 0x1F01) return profile.webglRenderer;
-            
-            // Get the original result for other parameters
-            const result = origGetParameter.call(this, param);
-            
-            // Add subtle randomization to certain parameters that contribute to uniqueness
-            if (typeof result === 'number' && (param === 0x1F02)) {
-                // ALIASED_POINT_SIZE_GRANULARITY - add very subtle randomization
-                return result + (Math.random() - 0.5) * 0.01;
-            }
-            
-            return result;
+            // For all other parameters, return the original value
+            return origGetParameter.call(this, param);
         };
 
-        // Also protect HTMLCanvasElement.getContext for WebGL
+        // Also protect WebGL2 contexts
+        if (window.WebGL2RenderingContext) {
+            const origGetParameter2 = WebGL2RenderingContext.prototype.getParameter;
+            WebGL2RenderingContext.prototype.getParameter = function(param) {
+                // Spoof vendor and renderer for WebGL2 contexts
+                if (param === 0x1F00) return profile.webglVendor; // VENDOR
+                if (param === 0x1F01) return profile.webglRenderer; // RENDERER
+                if (param === 37445) return profile.webglVendor; // UNMASKED_VENDOR_WEBGL
+                if (param === 37446) return profile.webglRenderer; // UNMASKED_RENDERER_WEBGL
+                
+                // For all other parameters, return the original value
+                return origGetParameter2.call(this, param);
+            };
+        }
+
+        // Protect canvas getContext method to ensure our protection is applied
         if (window.HTMLCanvasElement) {
             const origGetContext = HTMLCanvasElement.prototype.getContext;
             HTMLCanvasElement.prototype.getContext = function(contextType, contextAttributes) {
@@ -263,13 +268,11 @@
                     // Override getParameter method directly on this context instance
                     const origContextGetParameter = context.getParameter;
                     context.getParameter = function(param) {
-                        // 37445: UNMASKED_VENDOR_WEBGL, 37446: UNMASKED_RENDERER_WEBGL
-                        if (param === 37445) return profile.webglVendor;
-                        if (param === 37446) return profile.webglRenderer;
-                        
-                        // 0x1F00: VENDOR, 0x1F01: RENDERER - also spoof these for compatibility
-                        if (param === 0x1F00) return profile.webglVendor;
-                        if (param === 0x1F01) return profile.webglRenderer;
+                        // Spoof vendor and renderer
+                        if (param === 0x1F00) return profile.webglVendor; // VENDOR
+                        if (param === 0x1F01) return profile.webglRenderer; // RENDERER
+                        if (param === 37445) return profile.webglVendor; // UNMASKED_VENDOR_WEBGL
+                        if (param === 37446) return profile.webglRenderer; // UNMASKED_RENDERER_WEBGL
                         
                         return origContextGetParameter.call(this, param);
                     };
@@ -282,28 +285,6 @@
                 return context;
             };
         }
-
-        // Enhanced randomization of shader precision (more subtle)
-        const origGetShaderPrecisionFormat = WebGLRenderingContext.prototype.getShaderPrecisionFormat;
-        WebGLRenderingContext.prototype.getShaderPrecisionFormat = function() {
-            const res = origGetShaderPrecisionFormat.apply(this, arguments);
-            if (res && typeof res.precision === 'number') {
-                // Add very subtle randomization to make it less unique
-                res.precision += Math.floor(Math.random() * 2) - 0; // ±0-1 precision
-            }
-            return res;
-        };
-
-        // Randomize WebGL extensions to make them less unique (more subtle)
-        const origGetSupportedExtensions = WebGLRenderingContext.prototype.getSupportedExtensions;
-        WebGLRenderingContext.prototype.getSupportedExtensions = function() {
-            const extensions = origGetSupportedExtensions.call(this);
-            // Add very subtle randomization to extension order
-            if (extensions && extensions.length > 0) {
-                return extensions.sort(() => Math.random() - 0.5);
-            }
-            return extensions;
-        };
     }
 
     // --- Audio protection ---
