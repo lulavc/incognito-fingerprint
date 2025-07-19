@@ -58,8 +58,14 @@
         spoof(navigator, 'platform', () => profile.platform);
         spoof(navigator, 'language', () => profile.language);
         spoof(navigator, 'languages', () => [profile.language, 'en']);
-        spoof(navigator, 'hardwareConcurrency', () => profile.cores);
-        spoof(navigator, 'deviceMemory', () => profile.memory);
+        spoof(navigator, 'hardwareConcurrency', () => {
+            // Add ±1 core variation to make it less unique
+            return profile.cores + (Math.floor(Math.random() * 3) - 1);
+        });
+        spoof(navigator, 'deviceMemory', () => {
+            // Add ±1 GB variation to make it less unique
+            return profile.memory + (Math.floor(Math.random() * 3) - 1);
+        });
         spoof(navigator, 'vendor', () => profile.vendor);
         spoof(navigator, 'productSub', () => profile.productSub);
         spoof(navigator, 'appVersion', () => profile.appVersion);
@@ -168,35 +174,38 @@
                 return origToDataURL.apply(this, arguments);
             };
 
-            // Also randomize getImageData
+            // Also randomize getImageData (more subtle)
             const origGetImageData = CanvasRenderingContext2D.prototype.getImageData;
             CanvasRenderingContext2D.prototype.getImageData = function(x, y, w, h) {
                 const imgData = origGetImageData.call(this, x, y, w, h);
-                // Add subtle randomization to getImageData as well
+                // Add very subtle randomization to getImageData
                 for (let i = 0; i < imgData.data.length; i += 4) {
-                    imgData.data[i] = Math.max(0, Math.min(255, imgData.data[i] + (Math.random() > 0.5 ? 1 : -1)));
-                    imgData.data[i+1] = Math.max(0, Math.min(255, imgData.data[i+1] + (Math.random() > 0.5 ? 1 : -1)));
-                    imgData.data[i+2] = Math.max(0, Math.min(255, imgData.data[i+2] + (Math.random() > 0.5 ? 1 : -1)));
+                    // Only modify every 10th pixel to make it less detectable
+                    if (i % 40 === 0) {
+                        imgData.data[i] = Math.max(0, Math.min(255, imgData.data[i] + (Math.random() > 0.5 ? 1 : -1)));
+                        imgData.data[i+1] = Math.max(0, Math.min(255, imgData.data[i+1] + (Math.random() > 0.5 ? 1 : -1)));
+                        imgData.data[i+2] = Math.max(0, Math.min(255, imgData.data[i+2] + (Math.random() > 0.5 ? 1 : -1)));
+                    }
                 }
                 return imgData;
             };
 
-            // Enhanced canvas text/rect randomization
+            // Enhanced canvas text/rect randomization (more subtle)
             if (CANVAS_TEXT_RANDOMIZE) {
                 const methods = ['fillText', 'strokeText', 'fillRect', 'strokeRect', 'clearRect'];
                 methods.forEach(method => {
                     const orig = CanvasRenderingContext2D.prototype[method];
                     CanvasRenderingContext2D.prototype[method] = function(...args) {
                         if (method.includes('Text')) {
-                            // Add more subtle randomization for text positioning
-                            args[1] += (Math.random() - 0.5) * 0.3; // X position ±0.15
-                            args[2] += (Math.random() - 0.5) * 0.3; // Y position ±0.15
+                            // Add very subtle randomization for text positioning
+                            args[1] += (Math.random() - 0.5) * 0.1; // X position ±0.05
+                            args[2] += (Math.random() - 0.5) * 0.1; // Y position ±0.05
                         } else if (method.includes('Rect')) {
-                            // Add more subtle randomization for rectangles
-                            args[0] += (Math.random() - 0.5) * 0.3; // X position ±0.15
-                            args[1] += (Math.random() - 0.5) * 0.3; // Y position ±0.15
-                            if (args.length > 2) args[2] *= 1 + (Math.random() - 0.5) * 0.005; // W ±0.25%
-                            if (args.length > 3) args[3] *= 1 + (Math.random() - 0.5) * 0.005; // H ±0.25%
+                            // Add very subtle randomization for rectangles
+                            args[0] += (Math.random() - 0.5) * 0.1; // X position ±0.05
+                            args[1] += (Math.random() - 0.5) * 0.1; // Y position ±0.05
+                            if (args.length > 2) args[2] *= 1 + (Math.random() - 0.5) * 0.001; // W ±0.05%
+                            if (args.length > 3) args[3] *= 1 + (Math.random() - 0.5) * 0.001; // H ±0.05%
                         }
                         return orig.apply(this, args);
                     };
@@ -231,21 +240,13 @@
             if (param === 0x1F00) return profile.webglVendor;
             if (param === 0x1F01) return profile.webglRenderer;
             
-            // Add randomization to other WebGL parameters to make them less unique
+            // Get the original result for other parameters
             const result = origGetParameter.call(this, param);
             
-            // Randomize certain parameters that contribute to uniqueness
-            if (typeof result === 'number' && (param === 0x1F00 || param === 0x1F01 || param === 0x1F02)) {
-                // ALIASED_LINE_WIDTH_RANGE, ALIASED_POINT_SIZE_RANGE, ALIASED_POINT_SIZE_GRANULARITY
-                return result + (Math.random() - 0.5) * 0.1;
-            }
-            
-            // Make WebGL extensions less unique by randomizing order
-            if (param === 0x1F03) { // EXTENSIONS
-                const extensions = result;
-                if (extensions && extensions.length > 0) {
-                    return extensions.sort(() => Math.random() - 0.5);
-                }
+            // Add subtle randomization to certain parameters that contribute to uniqueness
+            if (typeof result === 'number' && (param === 0x1F02)) {
+                // ALIASED_POINT_SIZE_GRANULARITY - add very subtle randomization
+                return result + (Math.random() - 0.5) * 0.01;
             }
             
             return result;
@@ -258,7 +259,7 @@
                 const context = origGetContext.call(this, contextType, contextAttributes);
                 
                 // If it's a WebGL context, ensure our protection is applied
-                if (context && (contextType === 'webgl' || contextType === 'webgl2')) {
+                if (context && (contextType === 'webgl' || contextType === 'webgl2' || contextType === 'experimental-webgl')) {
                     // Override getParameter method directly on this context instance
                     const origContextGetParameter = context.getParameter;
                     context.getParameter = function(param) {
@@ -282,22 +283,22 @@
             };
         }
 
-        // Enhanced randomization of shader precision
+        // Enhanced randomization of shader precision (more subtle)
         const origGetShaderPrecisionFormat = WebGLRenderingContext.prototype.getShaderPrecisionFormat;
         WebGLRenderingContext.prototype.getShaderPrecisionFormat = function() {
             const res = origGetShaderPrecisionFormat.apply(this, arguments);
             if (res && typeof res.precision === 'number') {
-                // Add subtle randomization to make it less unique
-                res.precision += Math.floor(Math.random() * 3) - 1; // ±1 precision
+                // Add very subtle randomization to make it less unique
+                res.precision += Math.floor(Math.random() * 2) - 0; // ±0-1 precision
             }
             return res;
         };
 
-        // Randomize WebGL extensions to make them less unique
+        // Randomize WebGL extensions to make them less unique (more subtle)
         const origGetSupportedExtensions = WebGLRenderingContext.prototype.getSupportedExtensions;
         WebGLRenderingContext.prototype.getSupportedExtensions = function() {
             const extensions = origGetSupportedExtensions.call(this);
-            // Add subtle randomization to extension order
+            // Add very subtle randomization to extension order
             if (extensions && extensions.length > 0) {
                 return extensions.sort(() => Math.random() - 0.5);
             }
