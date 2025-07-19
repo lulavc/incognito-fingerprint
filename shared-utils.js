@@ -6,17 +6,32 @@
 
     // --- Global indicators for extension detection ---
     window.lulzactiveExtension = {
-        version: '0.9.0',
+        version: '0.10.0',
         name: 'lulzactive',
         timestamp: Date.now(),
         source: 'extension'
     };
-    window.lulzactiveVersion = '0.9.0';
+    window.lulzactiveVersion = '0.10.0';
     window.lulzactiveIsExtension = true;
     window.AntiFingerprintUtils = {
-        version: '0.9.0',
+        version: '0.10.0',
         isExtension: true,
-        isUserscript: false
+        isUserscript: false,
+        protectionLevel: 'advanced',
+        features: {
+            canvas: true,
+            webgl: true,
+            audio: true,
+            fonts: true,
+            navigator: true,
+            screen: true,
+            timezone: true,
+            webrtc: true,
+            battery: true,
+            mediaDevices: true,
+            permissions: true,
+            storage: true
+        }
     };
 
     // --- Feature toggles (sync with userscript) ---
@@ -24,6 +39,8 @@
     const ROUND_SCREEN = false;     // true = round screen size to nearest 100
     const FONT_RANDOMIZE = true;    // true = randomize measureText width
     const CANVAS_TEXT_RANDOMIZE = true; // true = randomize fillText/strokeText/rects
+    const ENHANCED_RANDOMIZATION = true; // true = use enhanced randomization
+    const ANTI_DETECTION = true;    // true = enable anti-detection measures
     let DEBUG_MODE = false;         // true = enable debug logging
 
     // --- Chrome/Windows profile (sync with userscript) ---
@@ -54,14 +71,69 @@
         ]
     };
 
+    // --- Enhanced randomization utilities ---
+    function getSubtleRandom(min, max) {
+        if (!ENHANCED_RANDOMIZATION) return Math.floor(Math.random() * (max - min + 1)) + min;
+        // Use more subtle randomization that's less detectable
+        const base = Math.floor(Math.random() * (max - min + 1)) + min;
+        const variation = Math.random() > 0.7 ? (Math.random() > 0.5 ? 1 : -1) : 0;
+        return Math.max(min, Math.min(max, base + variation));
+    }
+
+    function getConsistentRandom(seed) {
+        // Generate consistent "random" values based on a seed
+        let hash = 0;
+        for (let i = 0; i < seed.length; i++) {
+            const char = seed.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash; // Convert to 32-bit integer
+        }
+        return Math.abs(hash) % 100 / 100;
+    }
+
     // --- Utility: safe spoof property ---
     function spoof(obj, prop, valueFn) {
         try {
             Object.defineProperty(obj, prop, {
                 get: valueFn,
-                configurable: true
+                configurable: true,
+                enumerable: true
             });
-        } catch (e) {}
+        } catch (e) {
+            if (DEBUG_MODE) console.log('Failed to spoof', prop, e);
+        }
+    }
+
+    // --- Enhanced anti-detection measures ---
+    function applyAntiDetection() {
+        if (!ANTI_DETECTION) return;
+
+        // Hide our spoofing from detection scripts
+        const originalDefineProperty = Object.defineProperty;
+        Object.defineProperty = function(obj, prop, descriptor) {
+            // Don't allow detection of our spoofed properties
+            if (prop === 'userAgent' || prop === 'platform' || prop === 'webdriver') {
+                return obj;
+            }
+            return originalDefineProperty.call(this, obj, prop, descriptor);
+        };
+
+        // Hide our global objects from detection
+        Object.defineProperty(window, 'lulzactiveExtension', {
+            configurable: false,
+            enumerable: false,
+            writable: false
+        });
+
+        // Prevent detection of our script injection
+        const originalToString = Function.prototype.toString;
+        Function.prototype.toString = function() {
+            const str = originalToString.call(this);
+            if (str.includes('lulzactive') || str.includes('AntiFingerprint')) {
+                return 'function() { [native code] }';
+            }
+            return str;
+        };
     }
 
     // --- Core fingerprinting protection ---
@@ -72,12 +144,10 @@
         spoof(navigator, 'language', () => profile.language);
         spoof(navigator, 'languages', () => [profile.language, 'en']);
         spoof(navigator, 'hardwareConcurrency', () => {
-            // Add ±1 core variation to make it less unique
-            return profile.cores + (Math.floor(Math.random() * 3) - 1);
+            return profile.cores + getSubtleRandom(-1, 1);
         });
         spoof(navigator, 'deviceMemory', () => {
-            // Add ±1 GB variation to make it less unique
-            return profile.memory + (Math.floor(Math.random() * 3) - 1);
+            return profile.memory + getSubtleRandom(-1, 1);
         });
         spoof(navigator, 'vendor', () => profile.vendor);
         spoof(navigator, 'productSub', () => profile.productSub);
@@ -97,8 +167,8 @@
             Object.defineProperty(navigator, 'connection', {
                 get: () => ({
                     effectiveType: ['4g', '3g'][Math.floor(Math.random() * 2)],
-                    rtt: 50 + Math.floor(Math.random() * 100),
-                    downlink: 5 + Math.floor(Math.random() * 15),
+                    rtt: 50 + getSubtleRandom(0, 100),
+                    downlink: 5 + getSubtleRandom(0, 15),
                     saveData: Math.random() > 0.8
                 }),
                 configurable: true
@@ -137,11 +207,11 @@
         Date.prototype.getTimezoneOffset = function() {
             const offset = origGetTimezoneOffset.call(this);
             // Add ±1 minute randomization to make it less unique
-            return offset + (Math.floor(Math.random() * 3) - 1);
+            return offset + getSubtleRandom(-1, 1);
         };
     }
 
-    // --- Canvas protection ---
+    // --- Enhanced Canvas protection ---
     function applyCanvasProtection() {
         if (!window.HTMLCanvasElement) return;
 
@@ -203,382 +273,456 @@
                 return imgData;
             };
 
-            // Enhanced canvas text/rect randomization (very subtle)
+            // Enhanced text/rect randomization
             if (CANVAS_TEXT_RANDOMIZE) {
-                const methods = ['fillText', 'strokeText', 'fillRect', 'strokeRect', 'clearRect'];
-                methods.forEach(method => {
-                    const orig = CanvasRenderingContext2D.prototype[method];
-                    CanvasRenderingContext2D.prototype[method] = function(...args) {
-                        if (method.includes('Text')) {
-                            // Add very subtle randomization for text positioning
-                            args[1] += (Math.random() - 0.5) * 0.05; // X position ±0.025
-                            args[2] += (Math.random() - 0.5) * 0.05; // Y position ±0.025
-                        } else if (method.includes('Rect')) {
-                            // Add very subtle randomization for rectangles
-                            args[0] += (Math.random() - 0.5) * 0.05; // X position ±0.025
-                            args[1] += (Math.random() - 0.5) * 0.05; // Y position ±0.025
-                            if (args.length > 2) args[2] *= 1 + (Math.random() - 0.5) * 0.0005; // W ±0.025%
-                            if (args.length > 3) args[3] *= 1 + (Math.random() - 0.5) * 0.0005; // H ±0.025%
-                        }
-                        return orig.apply(this, args);
-                    };
-                });
-            }
-        }
+                const origFillText = CanvasRenderingContext2D.prototype.fillText;
+                const origStrokeText = CanvasRenderingContext2D.prototype.strokeText;
+                const origFillRect = CanvasRenderingContext2D.prototype.fillRect;
+                const origStrokeRect = CanvasRenderingContext2D.prototype.strokeRect;
 
-        // Enhanced font fingerprinting: randomize measureText width
-        if (FONT_RANDOMIZE && window.CanvasRenderingContext2D) {
-            const origMeasureText = CanvasRenderingContext2D.prototype.measureText;
-            CanvasRenderingContext2D.prototype.measureText = function() {
-                const result = origMeasureText.apply(this, arguments);
-                // Add more subtle randomization to make it less unique
-                result.width = result.width * (1 + (Math.random() - 0.5) * 0.005); // ±0.25% noise
-                return result;
-            };
+                CanvasRenderingContext2D.prototype.fillText = function(text, x, y, maxWidth) {
+                    const offset = getSubtleRandom(-1, 1);
+                    return origFillText.call(this, text, x + offset, y + offset, maxWidth);
+                };
+
+                CanvasRenderingContext2D.prototype.strokeText = function(text, x, y, maxWidth) {
+                    const offset = getSubtleRandom(-1, 1);
+                    return origStrokeText.call(this, text, x + offset, y + offset, maxWidth);
+                };
+
+                CanvasRenderingContext2D.prototype.fillRect = function(x, y, width, height) {
+                    const offset = getSubtleRandom(-1, 1);
+                    return origFillRect.call(this, x + offset, y + offset, width, height);
+                };
+
+                CanvasRenderingContext2D.prototype.strokeRect = function(x, y, width, height) {
+                    const offset = getSubtleRandom(-1, 1);
+                    return origStrokeRect.call(this, x + offset, y + offset, width, height);
+                };
+            }
         }
     }
 
-    // --- WebGL protection (sync with userscript) ---
+    // --- Enhanced WebGL protection ---
     function applyWebGLProtection() {
         if (!window.WebGLRenderingContext) return;
 
-        // Fix WebGL shader precision format issue
-        const origGetShaderPrecisionFormat = WebGLRenderingContext.prototype.getShaderPrecisionFormat;
-        WebGLRenderingContext.prototype.getShaderPrecisionFormat = function(shaderType, precisionType) {
-            const format = origGetShaderPrecisionFormat.call(this, shaderType, precisionType);
-            if (format) {
-                // Create a proxy to prevent setting read-only properties
-                return new Proxy(format, {
-                    set(target, prop, value) {
-                        // Allow setting properties that are writable
-                        if (prop in target && Object.getOwnPropertyDescriptor(target, prop).writable !== false) {
-                            target[prop] = value;
+        // Enhanced WebGL parameter proxying with shader precision format fix
+        const webglParams = {
+            'MAX_TEXTURE_SIZE': 16384,
+            'MAX_VIEWPORT_DIMS': [16384, 16384],
+            'MAX_RENDERBUFFER_SIZE': 16384,
+            'MAX_VERTEX_UNIFORM_VECTORS': 4096,
+            'MAX_FRAGMENT_UNIFORM_VECTORS': 1024,
+            'MAX_VERTEX_ATTRIBS': 16,
+            'MAX_VERTEX_TEXTURE_IMAGE_UNITS': 16,
+            'MAX_TEXTURE_IMAGE_UNITS': 16,
+            'MAX_COMBINED_TEXTURE_IMAGE_UNITS': 32,
+            'MAX_VERTEX_OUTPUT_COMPONENTS': 64,
+            'MAX_FRAGMENT_INPUT_COMPONENTS': 60,
+            'ALIASED_LINE_WIDTH_RANGE': [1, 1],
+            'ALIASED_POINT_SIZE_RANGE': [1, 1024],
+            'MAX_VIEWPORT_DIMS': [16384, 16384],
+            'MAX_CUBE_MAP_TEXTURE_SIZE': 16384,
+            'MAX_VERTEX_UNIFORM_BLOCKS': 14,
+            'MAX_FRAGMENT_UNIFORM_BLOCKS': 14,
+            'MAX_COMBINED_UNIFORM_BLOCKS': 70,
+            'MAX_UNIFORM_BUFFER_BINDINGS': 70,
+            'MAX_UNIFORM_BLOCK_SIZE': 16384,
+            'MAX_COMBINED_VERTEX_UNIFORM_COMPONENTS': 4096,
+            'MAX_COMBINED_FRAGMENT_UNIFORM_COMPONENTS': 1024,
+            'UNIFORM_BUFFER_OFFSET_ALIGNMENT': 256,
+            'MAX_VERTEX_OUTPUT_COMPONENTS': 64,
+            'MAX_FRAGMENT_INPUT_COMPONENTS': 60,
+            'MAX_SERVER_WAIT_TIMEOUT': 0,
+            'MAX_ELEMENT_INDEX': 4294967295,
+            'MIN_PROGRAM_TEXEL_OFFSET': -8,
+            'MAX_PROGRAM_TEXEL_OFFSET': 7
+        };
+
+        // Proxy WebGL context to fix shader precision format issues
+        const originalGetContext = HTMLCanvasElement.prototype.getContext;
+        HTMLCanvasElement.prototype.getContext = function(contextType, contextAttributes) {
+            const context = originalGetContext.call(this, contextType, contextAttributes);
+            
+            if (contextType === 'webgl' || contextType === 'webgl2') {
+                // Create a proxy for the WebGL context
+                return new Proxy(context, {
+                    get(target, prop) {
+                        if (prop === 'getParameter') {
+                            return function(parameter) {
+                                // Return spoofed values for specific parameters
+                                if (webglParams.hasOwnProperty(parameter)) {
+                                    return webglParams[parameter];
+                                }
+                                return target.getParameter(parameter);
+                            };
                         }
+                        if (prop === 'getExtension') {
+                            return function(name) {
+                                const extension = target.getExtension(name);
+                                if (extension && name === 'WEBGL_debug_renderer_info') {
+                                    return new Proxy(extension, {
+                                        get(extTarget, extProp) {
+                                            if (extProp === 'getParameter') {
+                                                return function(param) {
+                                                    if (param === 37445) { // UNMASKED_VENDOR_WEBGL
+                                                        return profile.webglVendor;
+                                                    }
+                                                    if (param === 37446) { // UNMASKED_RENDERER_WEBGL
+                                                        return profile.webglRenderer;
+                                                    }
+                                                    return extTarget.getParameter(param);
+                                                };
+                                            }
+                                            return extTarget[extProp];
+                                        }
+                                    });
+                                }
+                                return extension;
+                            };
+                        }
+                        if (prop === 'getShaderPrecisionFormat') {
+                            return function(shaderType, precisionType) {
+                                const format = target.getShaderPrecisionFormat(shaderType, precisionType);
+                                if (format) {
+                                    // Proxy the format object to make properties writable
+                                    return new Proxy(format, {
+                                        get(proxyTarget, proxyProp) {
+                                            return proxyTarget[proxyProp];
+                                        },
+                                        set(proxyTarget, proxyProp, value) {
+                                            proxyTarget[proxyProp] = value;
+                                            return true;
+                                        }
+                                    });
+                                }
+                                return format;
+                            };
+                        }
+                        return target[prop];
+                    },
+                    set(target, prop, value) {
+                        target[prop] = value;
                         return true;
                     }
                 });
             }
-            return format;
-        };
-
-        // Simple and reliable WebGL protection
-        const origGetParameter = WebGLRenderingContext.prototype.getParameter;
-        WebGLRenderingContext.prototype.getParameter = function(param) {
-            // Spoof vendor and renderer for all WebGL contexts
-            if (param === 0x1F00) return profile.webglVendor; // VENDOR
-            if (param === 0x1F01) return profile.webglRenderer; // RENDERER
-            if (param === 37445) return profile.webglVendor; // UNMASKED_VENDOR_WEBGL
-            if (param === 37446) return profile.webglRenderer; // UNMASKED_RENDERER_WEBGL
             
-            // For all other parameters, return the original value
-            return origGetParameter.call(this, param);
+            return context;
         };
-
-        // Also protect WebGL2 contexts
-        if (window.WebGL2RenderingContext) {
-            const origGetParameter2 = WebGL2RenderingContext.prototype.getParameter;
-            WebGL2RenderingContext.prototype.getParameter = function(param) {
-                // Spoof vendor and renderer for WebGL2 contexts
-                if (param === 0x1F00) return profile.webglVendor; // VENDOR
-                if (param === 0x1F01) return profile.webglRenderer; // RENDERER
-                if (param === 37445) return profile.webglVendor; // UNMASKED_VENDOR_WEBGL
-                if (param === 37446) return profile.webglRenderer; // UNMASKED_RENDERER_WEBGL
-                
-                // For all other parameters, return the original value
-                return origGetParameter2.call(this, param);
-            };
-        }
-
-        // Protect canvas getContext method to ensure our protection is applied
-        if (window.HTMLCanvasElement) {
-            const origGetContext = HTMLCanvasElement.prototype.getContext;
-            HTMLCanvasElement.prototype.getContext = function(contextType, contextAttributes) {
-                const context = origGetContext.call(this, contextType, contextAttributes);
-                
-                // If it's a WebGL context, ensure our protection is applied
-                if (context && (contextType === 'webgl' || contextType === 'webgl2' || contextType === 'experimental-webgl')) {
-                    // Override getParameter method directly on this context instance
-                    const origContextGetParameter = context.getParameter;
-                    context.getParameter = function(param) {
-                        // Spoof vendor and renderer
-                        if (param === 0x1F00) return profile.webglVendor; // VENDOR
-                        if (param === 0x1F01) return profile.webglRenderer; // RENDERER
-                        if (param === 37445) return profile.webglVendor; // UNMASKED_VENDOR_WEBGL
-                        if (param === 37446) return profile.webglRenderer; // UNMASKED_RENDERER_WEBGL
-                        
-                        return origContextGetParameter.call(this, param);
-                    };
-                    
-                    // Also protect getShaderPrecisionFormat on this context
-                    const origContextGetShaderPrecisionFormat = context.getShaderPrecisionFormat;
-                    context.getShaderPrecisionFormat = function(shaderType, precisionType) {
-                        const format = origContextGetShaderPrecisionFormat.call(this, shaderType, precisionType);
-                        if (format) {
-                            return new Proxy(format, {
-                                set(target, prop, value) {
-                                    if (prop in target && Object.getOwnPropertyDescriptor(target, prop).writable !== false) {
-                                        target[prop] = value;
-                                    }
-                                    return true;
-                                }
-                            });
-                        }
-                        return format;
-                    };
-                    
-                    if (DEBUG_MODE) {
-                        console.log('lulzactive: WebGL context created, vendor will be spoofed to:', profile.webglVendor);
-                    }
-                }
-                
-                return context;
-            };
-        }
     }
 
-    // --- Audio protection ---
+    // --- Enhanced Audio protection ---
     function applyAudioProtection() {
-        try {
-            if (window.AudioContext) {
-                const origSampleRate = Object.getOwnPropertyDescriptor(AudioContext.prototype, 'sampleRate');
-                Object.defineProperty(AudioContext.prototype, 'sampleRate', {
-                    get: function() { return 48000; },
-                    configurable: true
-                });
-            }
-        } catch (e) {}
-    }
+        if (!window.AudioContext && !window.webkitAudioContext) return;
 
-    // --- Font protection ---
-    function applyFontProtection() {
-        const winFonts = [
-            'Arial', 'Arial Black', 'Calibri', 'Cambria', 'Cambria Math', 'Comic Sans MS',
-            'Consolas', 'Courier New', 'Georgia', 'Impact', 'Lucida Console', 'Lucida Sans Unicode',
-            'Microsoft Sans Serif', 'Palatino Linotype', 'Segoe UI', 'Tahoma', 'Times New Roman',
-            'Trebuchet MS', 'Verdana', 'Symbol', 'Wingdings'
-        ];
-
-        if (document.fonts && typeof document.fonts.check === 'function') {
-            const origCheck = document.fonts.check.bind(document.fonts);
-            document.fonts.check = (fontSpec, text) => {
-                // Add randomization to make font detection less unique
-                const hasFont = winFonts.some(font => fontSpec.includes(font)) || origCheck(fontSpec, text);
-                // Add 5% chance of false positive to make it less unique
-                return hasFont || Math.random() < 0.05;
-            };
-        }
-
-        // Enhanced font enumeration protection
-        if (document.fonts && typeof document.fonts.ready === 'object') {
-            const origReady = document.fonts.ready;
-            Object.defineProperty(document.fonts, 'ready', {
-                get: () => Promise.resolve(),
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        const origAudioContext = AudioContextClass.prototype.constructor;
+        
+        AudioContextClass.prototype.constructor = function(contextOptions) {
+            const context = new origAudioContext(contextOptions);
+            
+            // Spoof sample rate
+            Object.defineProperty(context, 'sampleRate', {
+                get: () => 44100 + getSubtleRandom(-100, 100),
                 configurable: true
             });
-        }
-
-        // Randomize font loading events
-        if (document.fonts && typeof document.fonts.addEventListener === 'function') {
-            const origAddEventListener = document.fonts.addEventListener;
-            document.fonts.addEventListener = function(type, listener, options) {
-                // Add subtle randomization to font loading events
-                const wrappedListener = function(event) {
-                    // Add small delay to make timing less unique
-                    setTimeout(() => listener.call(this, event), Math.random() * 10);
-                };
-                return origAddEventListener.call(this, type, wrappedListener, options);
-            };
-        }
+            
+            // Spoof state
+            Object.defineProperty(context, 'state', {
+                get: () => 'running',
+                configurable: true
+            });
+            
+            return context;
+        };
     }
 
-    // --- Additional protections ---
-    function applyAdditionalProtections() {
-        // Permissions API
-        if ('permissions' in navigator) {
-            const origQuery = navigator.permissions.query;
-            navigator.permissions.query = function () {
-                return Promise.resolve({ state: 'granted' });
-            };
-        }
+    // --- Enhanced Font protection ---
+    function applyFontProtection() {
+        if (!window.document) return;
 
-        // MediaDevices
-        spoof(navigator, 'mediaDevices', () => ({ enumerateDevices: () => Promise.resolve([]) }));
-
-        // Storage API
-        if (navigator.storage && navigator.storage.estimate) {
-            navigator.storage.estimate = () => Promise.resolve({ usage: 5242880, quota: 1073741824 });
-        }
-
-        // MatchMedia
-        if (window.matchMedia) {
-            const origMatchMedia = window.matchMedia;
-            window.matchMedia = function(query) {
-                if (query.includes('color-scheme')) {
-                    return { matches: Math.random() > 0.5, media: query };
-                }
-                return origMatchMedia.call(this, query);
-            };
-        }
-
-        // SharedArrayBuffer
-        spoof(window, 'SharedArrayBuffer', () => undefined);
-
-        // Document referrer
-        Object.defineProperty(document, 'referrer', {
-            get: () => "",
-            configurable: true
-        });
-
-        // Window name
-        window.name = "";
-    }
-
-    // --- Anti-tracking protection ---
-    function applyAntiTrackingProtection() {
-        const blockedTrackers = [
-            // Google
-            "google-analytics.com", "googletagmanager.com", "googleadservices.com", "doubleclick.net", "adservice.google.com",
-            "pagead2.googlesyndication.com", "adclick.g.doubleclick.net", "gstatic.com/ads", "googlesyndication.com",
-            // Facebook
-            "facebook.com/tr", "facebook.net", "connect.facebook.net", "fbcdn.net", "fb.com", "fbsbx.com",
-            // Microsoft/Bing
-            "bat.bing.com", "bing.com/fd/ls", "clarity.ms",
-            // Twitter/X
-            "analytics.twitter.com", "t.co/i/adsct", "static.ads-twitter.com",
-            // TikTok
-            "analytics.tiktok.com", "business.tiktok.com", "ads.tiktok.com",
-            // Amazon
-            "aax.amazon-adsystem.com", "amazon-adsystem.com",
-            // Other ad/trackers
-            "scorecardresearch.com", "hotjar.com", "mixpanel.com", "matomo.org", "quantserve.com", "adroll.com",
-            "criteo.com", "adnxs.com", "taboola.com", "outbrain.com", "zedo.com", "yandex.ru/metrika", "yandex.net",
-            "newrelic.com", "segment.com", "optimizely.com", "bluekai.com", "adform.net", "openx.net", "rubiconproject.com",
-            "moatads.com", "smartadserver.com", "pubmatic.com", "casalemedia.com", "advertising.com", "ml314.com",
-            "yieldmo.com", "bidswitch.net", "gumgum.com", "eyeota.net", "adition.com", "adscale.de", "adspirit.de",
-            "adtech.de", "bidr.io"
+        // Windows font set
+        const windowsFonts = [
+            'Arial', 'Arial Black', 'Calibri', 'Cambria', 'Cambria Math', 'Comic Sans MS',
+            'Courier New', 'Georgia', 'Impact', 'Lucida Console', 'Lucida Sans Unicode',
+            'Microsoft Sans Serif', 'Palatino Linotype', 'Tahoma', 'Times New Roman',
+            'Trebuchet MS', 'Verdana', 'Webdings', 'Wingdings', 'Wingdings 2', 'Wingdings 3'
         ];
 
-        function isTracker(url) {
-            return blockedTrackers.some(domain => url.includes(domain));
-        }
-
-        // Block XMLHttpRequest
-        const origOpen = XMLHttpRequest.prototype.open;
-        XMLHttpRequest.prototype.open = function(method, url) {
-            if (isTracker(url)) {
-                console.warn("Blocked tracker (XHR):", url);
-                return;
-            }
-            return origOpen.apply(this, arguments);
-        };
-
-        // Block fetch
-        const origFetch = window.fetch;
-        window.fetch = function(input, init) {
-            const url = typeof input === "string" ? input : input.url;
-            if (isTracker(url)) {
-                console.warn("Blocked tracker (fetch):", url);
-                return new Promise(() => {});
-            }
-            return origFetch.apply(this, arguments);
-        };
-
-        // Block image/script tags
-        const origCreateElement = document.createElement;
-        document.createElement = function(tagName, options) {
-            const el = origCreateElement.call(this, tagName, options);
-            if (["img", "script", "iframe"].includes(tagName.toLowerCase())) {
-                const origSetAttribute = el.setAttribute;
-                el.setAttribute = function(name, value) {
-                    if ((name === "src" || name === "data-src") && isTracker(value)) {
-                        console.warn("Blocked tracker (element):", value);
-                        return;
-                    }
-                    return origSetAttribute.apply(this, arguments);
-                };
-            }
-            return el;
-        };
-
-        // Block sendBeacon
-        try {
-            navigator.sendBeacon = function() { return true; };
-            window.sendBeacon = function() { return true; };
-        } catch (e) {}
-
-        // Block or spoof Battery API
-        if (navigator.getBattery) {
-            navigator.getBattery = function() {
-                return Promise.resolve({
-                    charging: true,
-                    chargingTime: Infinity,
-                    dischargingTime: Infinity,
-                    level: 1.0,
-                    addEventListener: () => {},
-                    removeEventListener: () => {}
-                });
+        // Override font detection
+        if (window.document.fonts && window.document.fonts.check) {
+            const origCheck = window.document.fonts.check;
+            window.document.fonts.check = function(font, text) {
+                // Always return true for common fonts
+                if (windowsFonts.some(f => font.includes(f))) {
+                    return true;
+                }
+                return origCheck.call(this, font, text);
             };
         }
 
-        // Block or spoof Network Information API
-        if (navigator.connection) {
-            Object.defineProperty(navigator, 'connection', {
+        // Enhanced measureText randomization
+        if (FONT_RANDOMIZE && window.CanvasRenderingContext2D) {
+            const origMeasureText = CanvasRenderingContext2D.prototype.measureText;
+            CanvasRenderingContext2D.prototype.measureText = function(text) {
+                const metrics = origMeasureText.call(this, text);
+                
+                // Add subtle randomization to width
+                const originalWidth = metrics.width;
+                const randomFactor = 1 + (getSubtleRandom(-5, 5) / 1000); // ±0.5% variation
+                
+                Object.defineProperty(metrics, 'width', {
+                    get: () => originalWidth * randomFactor,
+                    configurable: true
+                });
+                
+                return metrics;
+            };
+        }
+
+        // Block font enumeration
+        if (window.document.fonts && window.document.fonts.ready) {
+            const origReady = window.document.fonts.ready;
+            window.document.fonts.ready = new Promise((resolve) => {
+                // Resolve immediately with a subset of fonts
+                resolve();
+            });
+        }
+    }
+
+    // --- Enhanced Battery API protection ---
+    function applyBatteryProtection() {
+        if (!navigator.getBattery) return;
+
+        const origGetBattery = navigator.getBattery;
+        navigator.getBattery = function() {
+            return origGetBattery.call(this).then(battery => {
+                // Spoof battery properties
+                Object.defineProperty(battery, 'level', {
+                    get: () => 0.5 + getSubtleRandom(-10, 10) / 100,
+                    configurable: true
+                });
+                Object.defineProperty(battery, 'charging', {
+                    get: () => Math.random() > 0.3,
+                    configurable: true
+                });
+                Object.defineProperty(battery, 'chargingTime', {
+                    get: () => battery.charging ? getSubtleRandom(1000, 3600) : Infinity,
+                    configurable: true
+                });
+                Object.defineProperty(battery, 'dischargingTime', {
+                    get: () => battery.charging ? Infinity : getSubtleRandom(3600, 7200),
+                    configurable: true
+                });
+                return battery;
+            });
+        };
+    }
+
+    // --- Enhanced MediaDevices protection ---
+    function applyMediaDevicesProtection() {
+        if (!navigator.mediaDevices) return;
+
+        const origEnumerateDevices = navigator.mediaDevices.enumerateDevices;
+        navigator.mediaDevices.enumerateDevices = function() {
+            return origEnumerateDevices.call(this).then(devices => {
+                // Spoof device IDs
+                return devices.map(device => ({
+                    ...device,
+                    deviceId: device.deviceId ? 'spoofed-device-id-' + Math.random().toString(36).substr(2, 9) : device.deviceId
+                }));
+            });
+        };
+
+        const origGetUserMedia = navigator.mediaDevices.getUserMedia;
+        navigator.mediaDevices.getUserMedia = function(constraints) {
+            // Block certain media requests
+            if (constraints.video && constraints.video.facingMode === 'environment') {
+                return Promise.reject(new Error('Camera access denied'));
+            }
+            return origGetUserMedia.call(this, constraints);
+        };
+    }
+
+    // --- Enhanced Permissions protection ---
+    function applyPermissionsProtection() {
+        if (!navigator.permissions) return;
+
+        const origQuery = navigator.permissions.query;
+        navigator.permissions.query = function(permissionDesc) {
+            // Block certain permission queries
+            const blockedPermissions = ['geolocation', 'notifications', 'microphone', 'camera'];
+            if (blockedPermissions.includes(permissionDesc.name)) {
+                return Promise.resolve({
+                    state: 'denied',
+                    onchange: null
+                });
+            }
+            return origQuery.call(this, permissionDesc);
+        };
+    }
+
+    // --- Enhanced Storage protection ---
+    function applyStorageProtection() {
+        // Block localStorage and sessionStorage access for certain domains
+        const blockedDomains = ['tracker.com', 'analytics.com', 'ads.com'];
+        const currentDomain = window.location.hostname;
+        
+        if (blockedDomains.some(domain => currentDomain.includes(domain))) {
+            // Override storage methods
+            const noop = () => {};
+            Object.defineProperty(window, 'localStorage', {
                 get: () => ({
-                    effectiveType: '4g',
-                    rtt: 50,
-                    downlink: 10,
-                    saveData: false
+                    getItem: noop,
+                    setItem: noop,
+                    removeItem: noop,
+                    clear: noop,
+                    key: noop,
+                    length: 0
+                }),
+                configurable: true
+            });
+            
+            Object.defineProperty(window, 'sessionStorage', {
+                get: () => ({
+                    getItem: noop,
+                    setItem: noop,
+                    removeItem: noop,
+                    clear: noop,
+                    key: noop,
+                    length: 0
                 }),
                 configurable: true
             });
         }
     }
 
-    // --- Main application function ---
+    // --- Enhanced WebRTC protection ---
+    function applyWebRTCProtection() {
+        // Block WebRTC to prevent IP leaks
+        if (window.RTCPeerConnection) {
+            const origRTCPeerConnection = window.RTCPeerConnection;
+            window.RTCPeerConnection = function(configuration) {
+                const pc = new origRTCPeerConnection(configuration);
+                
+                // Override createOffer and createAnswer to prevent ICE gathering
+                const origCreateOffer = pc.createOffer;
+                const origCreateAnswer = pc.createAnswer;
+                
+                pc.createOffer = function(options) {
+                    return origCreateOffer.call(this, options).then(offer => {
+                        // Remove ICE candidates
+                        offer.sdp = offer.sdp.replace(/a=candidate.*\r\n/g, '');
+                        return offer;
+                    });
+                };
+                
+                pc.createAnswer = function(options) {
+                    return origCreateAnswer.call(this, options).then(answer => {
+                        // Remove ICE candidates
+                        answer.sdp = answer.sdp.replace(/a=candidate.*\r\n/g, '');
+                        return answer;
+                    });
+                };
+                
+                return pc;
+            };
+        }
+    }
+
+    // --- Enhanced anti-tracking protection ---
+    function applyAntiTrackingProtection() {
+        // Block known tracking domains
+        const blockedDomains = [
+            'google-analytics.com', 'googletagmanager.com', 'facebook.com',
+            'doubleclick.net', 'googlesyndication.com', 'amazon-adsystem.com',
+            'bing.com', 'yahoo.com', 'twitter.com', 'linkedin.com'
+        ];
+
+        // Block third-party cookies
+        if (document.cookie) {
+            const origCookie = Object.getOwnPropertyDescriptor(Document.prototype, 'cookie');
+            Object.defineProperty(document, 'cookie', {
+                get: origCookie.get,
+                set: function(value) {
+                    // Block third-party cookies
+                    if (value.includes('domain=') || value.includes('path=/')) {
+                        return;
+                    }
+                    return origCookie.set.call(this, value);
+                },
+                configurable: true
+            });
+        }
+
+        // Block tracking scripts
+        const observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                mutation.addedNodes.forEach(function(node) {
+                    if (node.tagName === 'SCRIPT') {
+                        const src = node.src || '';
+                        if (blockedDomains.some(domain => src.includes(domain))) {
+                            node.remove();
+                        }
+                    }
+                });
+            });
+        });
+
+        observer.observe(document, {
+            childList: true,
+            subtree: true
+        });
+    }
+
+    // --- Apply all protections ---
     function applyAllProtections() {
+        if (DEBUG_MODE) console.log('🛡️ Applying anti-fingerprinting protections...');
+        
+        applyAntiDetection();
         applyCoreProtection();
         applyCanvasProtection();
         applyWebGLProtection();
         applyAudioProtection();
         applyFontProtection();
-        applyAdditionalProtections();
+        applyBatteryProtection();
+        applyMediaDevicesProtection();
+        applyPermissionsProtection();
+        applyStorageProtection();
+        applyWebRTCProtection();
         applyAntiTrackingProtection();
+        
+        if (DEBUG_MODE) console.log('✅ Anti-fingerprinting protections applied');
     }
 
-    // --- Export for use in other scripts ---
-    // Expose utilities globally for popup access
-    window.AntiFingerprintUtils = {
-        initialize: applyAllProtections,
-        setDebugMode: function(enabled) {
-            DEBUG_MODE = enabled;
-            if (enabled) {
-                console.log('lulzactive: Debug mode enabled');
-            }
-        },
-        getProfile: () => profile,
-        getStats: () => ({
-            protections: {
-                core: true,
-                canvas: true,
-                webgl: true,
-                audio: true,
-                font: true,
-                antiTracking: true
-            },
-            profile: profile,
-            debugMode: DEBUG_MODE
-        }),
-        // Mark whether this is from extension or userscript
-        isUserscript: typeof window.lulzactiveIsUserscript !== 'undefined',
-        isExtension: typeof window.lulzactiveIsUserscript === 'undefined',
-        source: typeof window.lulzactiveIsUserscript !== 'undefined' ? 'userscript' : 'extension'
-    };
-
-    // --- Auto-apply if this script is loaded directly ---
+    // --- Initialize protection ---
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', applyAllProtections);
     } else {
         applyAllProtections();
     }
+
+    // --- Export for external access ---
+    window.lulzactiveProtection = {
+        version: '0.10.0',
+        applyProtections: applyAllProtections,
+        isEnabled: true,
+        features: {
+            canvas: true,
+            webgl: true,
+            audio: true,
+            fonts: true,
+            navigator: true,
+            screen: true,
+            timezone: true,
+            webrtc: true,
+            battery: true,
+            mediaDevices: true,
+            permissions: true,
+            storage: true
+        }
+    };
 
 })(); 

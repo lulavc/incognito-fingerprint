@@ -1,4 +1,4 @@
-// Enhanced popup functionality for lulzactive extension (Manifest V3)
+// Enhanced popup functionality for Incognito Fingerprint extension (Manifest V3)
 document.addEventListener('DOMContentLoaded', function() {
     const statusDiv = document.getElementById('status');
     const statusIcon = document.getElementById('statusIcon');
@@ -15,6 +15,24 @@ document.addEventListener('DOMContentLoaded', function() {
     const resetBtn = document.getElementById('resetBtn');
     const exportBtn = document.getElementById('exportBtn');
     const userscriptStatus = document.getElementById('userscriptStatus');
+    const userscriptText = document.getElementById('userscriptText');
+    const userscriptLoading = document.getElementById('userscriptLoading');
+
+    // Protection feature elements
+    const canvasProtection = document.getElementById('canvasProtection');
+    const webglProtection = document.getElementById('webglProtection');
+    const audioProtection = document.getElementById('audioProtection');
+    const fontProtection = document.getElementById('fontProtection');
+    const navigatorProtection = document.getElementById('navigatorProtection');
+    const screenProtection = document.getElementById('screenProtection');
+    const webrtcProtection = document.getElementById('webrtcProtection');
+    const batteryProtection = document.getElementById('batteryProtection');
+
+    // Feature toggle elements
+    const enhancedRandomization = document.getElementById('enhancedRandomization');
+    const antiDetection = document.getElementById('antiDetection');
+    const canvasTextRandomize = document.getElementById('canvasTextRandomize');
+    const fontRandomize = document.getElementById('fontRandomize');
 
     let isEnabled = true; // Default to enabled
     let debugMode = false;
@@ -100,7 +118,9 @@ document.addEventListener('DOMContentLoaded', function() {
     function initializePopup() {
         updateStatus();
         updateStats();
+        updateProtectionFeatures();
         checkUserscriptStatus();
+        setupFeatureToggles();
 
         // Set up event listeners
         toggleBtn.addEventListener('click', toggleProtection);
@@ -148,11 +168,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Update debug button state
             if (debugMode) {
-                debugBtn.style.background = 'rgba(76, 175, 80, 0.2)';
-                debugBtn.style.borderColor = 'rgba(76, 175, 80, 0.4)';
+                debugBtn.classList.add('active');
             } else {
-                debugBtn.style.background = 'rgba(255, 255, 255, 0.08)';
-                debugBtn.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+                debugBtn.classList.remove('active');
             }
         }).catch(err => {
             console.log('Failed to get protection status:', err);
@@ -165,6 +183,74 @@ document.addEventListener('DOMContentLoaded', function() {
             toggleText.textContent = 'Disable Protection';
             toggleBtn.className = 'main-toggle';
         });
+    }
+
+    // Update protection features status
+    function updateProtectionFeatures() {
+        chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+            if (tabs[0] && canInjectScript(tabs[0])) {
+                chrome.scripting.executeScript({
+                    target: {tabId: tabs[0].id},
+                    func: () => {
+                        // Check each protection feature
+                        const features = {
+                            canvas: window.HTMLCanvasElement && window.HTMLCanvasElement.prototype.toDataURL,
+                            webgl: window.WebGLRenderingContext,
+                            audio: window.AudioContext || window.webkitAudioContext,
+                            fonts: window.document && window.document.fonts,
+                            navigator: window.navigator && window.navigator.userAgent,
+                            screen: window.screen,
+                            webrtc: window.RTCPeerConnection,
+                            battery: navigator.getBattery
+                        };
+
+                        // Check if our protection is active
+                        const protection = window.lulzactiveProtection || window.AntiFingerprintUtils;
+                        if (protection) {
+                            return {
+                                features: features,
+                                protectionActive: true,
+                                version: protection.version || '0.10.0'
+                            };
+                        }
+                        return { features: features, protectionActive: false };
+                    }
+                }, (results) => {
+                    if (results && results[0] && results[0].result) {
+                        const result = results[0].result;
+                        
+                        // Update protection feature indicators
+                        updateProtectionIndicator(canvasProtection, result.features.canvas);
+                        updateProtectionIndicator(webglProtection, result.features.webgl);
+                        updateProtectionIndicator(audioProtection, result.features.audio);
+                        updateProtectionIndicator(fontProtection, result.features.fonts);
+                        updateProtectionIndicator(navigatorProtection, result.features.navigator);
+                        updateProtectionIndicator(screenProtection, result.features.screen);
+                        updateProtectionIndicator(webrtcProtection, result.features.webrtc);
+                        updateProtectionIndicator(batteryProtection, result.features.battery);
+                    }
+                });
+            } else {
+                // Set all protections to inactive for restricted pages
+                [canvasProtection, webglProtection, audioProtection, fontProtection, 
+                 navigatorProtection, screenProtection, webrtcProtection, batteryProtection].forEach(el => {
+                    updateProtectionIndicator(el, false);
+                });
+            }
+        });
+    }
+
+    // Update individual protection indicator
+    function updateProtectionIndicator(element, isActive) {
+        if (element) {
+            if (isActive) {
+                element.classList.add('active');
+                element.classList.remove('inactive');
+            } else {
+                element.classList.add('inactive');
+                element.classList.remove('active');
+            }
+        }
     }
 
     // Update statistics with progress bars
@@ -185,7 +271,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     func: () => {
                         // Count active protections
                         let protectionCount = 0;
-                        const maxProtections = 8;
+                        const maxProtections = 12;
                         
                         if (window.AntiFingerprintUtils) protectionCount++;
                         if (navigator.userAgent.includes('Chrome/120')) protectionCount++;
@@ -195,150 +281,154 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (window.HTMLCanvasElement && window.HTMLCanvasElement.prototype.toDataURL) protectionCount++;
                         if (window.AudioContext || window.webkitAudioContext) protectionCount++;
                         if (navigator.languages && navigator.languages.includes('en-US')) protectionCount++;
+                        if (window.RTCPeerConnection) protectionCount++;
+                        if (navigator.getBattery) protectionCount++;
+                        if (navigator.mediaDevices) protectionCount++;
+                        if (navigator.permissions) protectionCount++;
                         
                         // Count blocked trackers (estimate)
                         let trackerCount = 0;
-                        const maxTrackers = 100;
+                        const blockedDomains = [
+                            'google-analytics.com', 'googletagmanager.com', 'facebook.com',
+                            'doubleclick.net', 'googlesyndication.com', 'amazon-adsystem.com'
+                        ];
                         
-                        if (window.fetch && window.XMLHttpRequest) {
-                            // Check if anti-tracking is active
-                            trackerCount = Math.floor(Math.random() * 50) + 30; // Simulated tracker count
-                        }
+                        // Check for blocked scripts
+                        const scripts = document.querySelectorAll('script[src]');
+                        scripts.forEach(script => {
+                            if (blockedDomains.some(domain => script.src.includes(domain))) {
+                                trackerCount++;
+                            }
+                        });
                         
-                        return [protectionCount, trackerCount, maxProtections, maxTrackers];
+                        return {
+                            protectionCount: protectionCount,
+                            maxProtections: maxProtections,
+                            trackerCount: trackerCount,
+                            maxTrackers: 10
+                        };
                     }
-                }).then(results => {
+                }, (results) => {
                     if (results && results[0] && results[0].result) {
-                        const [protections, trackers, maxProtections, maxTrackers] = results[0].result;
+                        const result = results[0].result;
                         
-                        overridesCount.textContent = protections || 0;
-                        trackersBlocked.textContent = trackers || 0;
+                        overridesCount.textContent = result.protectionCount;
+                        trackersBlocked.textContent = result.trackerCount;
                         
-                        // Update progress bars
-                        const protectionPercent = Math.round((protections / maxProtections) * 100);
-                        const trackerPercent = Math.round((trackers / maxTrackers) * 100);
+                        const protectionPercent = (result.protectionCount / result.maxProtections) * 100;
+                        const trackerPercent = Math.min((result.trackerCount / result.maxTrackers) * 100, 100);
                         
-                        protectionProgress.style.width = `${protectionPercent}%`;
-                        trackerProgress.style.width = `${trackerPercent}%`;
-                        
-                        // Add color coding to progress bars
-                        if (protectionPercent >= 80) {
-                            protectionProgress.style.background = 'linear-gradient(90deg, #4CAF50, #45a049)';
-                        } else if (protectionPercent >= 50) {
-                            protectionProgress.style.background = 'linear-gradient(90deg, #FF9800, #F57C00)';
-                        } else {
-                            protectionProgress.style.background = 'linear-gradient(90deg, #f44336, #da190b)';
-                        }
+                        protectionProgress.style.width = protectionPercent + '%';
+                        trackerProgress.style.width = trackerPercent + '%';
                     }
-                }).catch(err => {
-                    console.log('Failed to get stats:', err);
-                    overridesCount.textContent = '0';
-                    trackersBlocked.textContent = '0';
-                    protectionProgress.style.width = '0%';
-                    trackerProgress.style.width = '0%';
                 });
             }
         });
     }
 
-    // Check userscript status with enhanced detection
+    // Check userscript status
     function checkUserscriptStatus() {
         chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-            if (tabs[0]) {
-                if (!canInjectScript(tabs[0])) {
-                    userscriptStatus.innerHTML = '<span>🟡 Userscript: N/A (Extension Page)</span>';
-                    userscriptStatus.className = 'userscript-status userscript-inactive';
-                    return;
-                }
-                
+            if (tabs[0] && canInjectScript(tabs[0])) {
                 chrome.scripting.executeScript({
                     target: {tabId: tabs[0].id},
                     func: () => {
-                        // Enhanced userscript detection
-                        const userscriptIndicators = {
-                            hasUserscriptGlobal: typeof window.lulzactiveUserscript !== 'undefined',
-                            hasUserscriptProtection: window.AntiFingerprintUtils && window.AntiFingerprintUtils.isUserscript,
-                            hasUserscriptVersion: typeof window.lulzactiveVersion !== 'undefined',
-                            hasUserscriptName: document.querySelector('script[src*="lulzactive"]') !== null,
-                            hasEnhancedProtection: window.AntiFingerprintUtils && window.AntiFingerprintUtils.version >= '0.6.0'
-                        };
-                        
-                        // Determine status based on indicators
-                        if (userscriptIndicators.hasUserscriptGlobal || userscriptIndicators.hasUserscriptProtection) {
-                            return { status: 'Active', enhanced: userscriptIndicators.hasEnhancedProtection };
-                        } else if (window.AntiFingerprintUtils) {
-                            return { status: 'Extension Only', enhanced: false };
+                        // Check for userscript presence
+                        if (window.lulzactiveUserscript) {
+                            return {
+                                active: true,
+                                version: window.lulzactiveUserscript.version,
+                                source: 'userscript'
+                            };
+                        } else if (window.lulzactiveExtension) {
+                            return {
+                                active: true,
+                                version: window.lulzactiveExtension.version,
+                                source: 'extension'
+                            };
                         } else {
-                            return { status: 'Inactive', enhanced: false };
+                            return { active: false };
                         }
                     }
-                }).then(results => {
+                }, (results) => {
                     if (results && results[0] && results[0].result) {
-                        const { status, enhanced } = results[0].result;
-                        const loadingElement = userscriptStatus.querySelector('.loading');
+                        const result = results[0].result;
                         
-                        if (loadingElement) {
-                            loadingElement.remove();
-                        }
-                        
-                        if (status === 'Active') {
-                            userscriptStatus.innerHTML = `<span>🟢 Userscript: Active${enhanced ? ' (Enhanced)' : ''}</span>`;
+                        if (result.active) {
                             userscriptStatus.className = 'userscript-status userscript-active';
-                        } else if (status === 'Extension Only') {
-                            userscriptStatus.innerHTML = '<span>🟡 Userscript: Extension Only</span>';
-                            userscriptStatus.className = 'userscript-status userscript-inactive';
+                            userscriptText.textContent = `Active (${result.source} v${result.version})`;
+                            userscriptLoading.style.display = 'none';
                         } else {
-                            userscriptStatus.innerHTML = '<span>🟡 Userscript: Inactive</span>';
                             userscriptStatus.className = 'userscript-status userscript-inactive';
+                            userscriptText.textContent = 'Not detected';
+                            userscriptLoading.style.display = 'none';
                         }
+                    } else {
+                        userscriptStatus.className = 'userscript-status userscript-inactive';
+                        userscriptText.textContent = 'Error checking';
+                        userscriptLoading.style.display = 'none';
                     }
-                }).catch(err => {
-                    console.log('Failed to check userscript status:', err);
-                    const loadingElement = userscriptStatus.querySelector('.loading');
-                    if (loadingElement) {
-                        loadingElement.remove();
-                    }
-                    userscriptStatus.innerHTML = '<span>🟡 Userscript: Unknown</span>';
-                    userscriptStatus.className = 'userscript-status userscript-inactive';
                 });
+            } else {
+                userscriptStatus.className = 'userscript-status userscript-inactive';
+                userscriptText.textContent = 'Restricted page';
+                userscriptLoading.style.display = 'none';
             }
         });
     }
 
-    // Toggle protection with enhanced feedback
-    function toggleProtection() {
-        isEnabled = !isEnabled;
-        
-        // Show loading state
-        toggleText.textContent = isEnabled ? 'Enabling...' : 'Disabling...';
-        toggleBtn.disabled = true;
-        
-        setStorageData({protectionEnabled: isEnabled}).then(() => {
-            updateStatus();
-            showNotification(
-                isEnabled ? 'Protection enabled successfully!' : 'Protection disabled.',
-                'success'
-            );
-            
-            // Reload current tab to apply changes
-            chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-                if (tabs[0]) {
-                    chrome.tabs.reload(tabs[0].id);
-                }
-            });
-            
-            // Re-enable button after a short delay
-            setTimeout(() => {
-                toggleBtn.disabled = false;
-            }, 1000);
-        }).catch(err => {
-            console.log('Failed to save protection status:', err);
-            showNotification('Failed to update protection status.', 'error');
-            toggleBtn.disabled = false;
+    // Setup feature toggles
+    function setupFeatureToggles() {
+        // Enhanced Randomization toggle
+        enhancedRandomization.addEventListener('click', function() {
+            this.classList.toggle('active');
+            const isActive = this.classList.contains('active');
+            setStorageData({ enhancedRandomization: isActive });
+            showNotification(`Enhanced randomization ${isActive ? 'enabled' : 'disabled'}`, 'success');
+        });
+
+        // Anti-Detection toggle
+        antiDetection.addEventListener('click', function() {
+            this.classList.toggle('active');
+            const isActive = this.classList.contains('active');
+            setStorageData({ antiDetection: isActive });
+            showNotification(`Anti-detection ${isActive ? 'enabled' : 'disabled'}`, 'success');
+        });
+
+        // Canvas Text Randomize toggle
+        canvasTextRandomize.addEventListener('click', function() {
+            this.classList.toggle('active');
+            const isActive = this.classList.contains('active');
+            setStorageData({ canvasTextRandomize: isActive });
+            showNotification(`Canvas text randomization ${isActive ? 'enabled' : 'disabled'}`, 'success');
+        });
+
+        // Font Randomize toggle
+        fontRandomize.addEventListener('click', function() {
+            this.classList.toggle('active');
+            const isActive = this.classList.contains('active');
+            setStorageData({ fontRandomize: isActive });
+            showNotification(`Font randomization ${isActive ? 'enabled' : 'disabled'}`, 'success');
+        });
+
+        // Load saved toggle states
+        getStorageData(['enhancedRandomization', 'antiDetection', 'canvasTextRandomize', 'fontRandomize']).then(result => {
+            if (result.enhancedRandomization !== false) enhancedRandomization.classList.add('active');
+            if (result.antiDetection !== false) antiDetection.classList.add('active');
+            if (result.canvasTextRandomize !== false) canvasTextRandomize.classList.add('active');
+            if (result.fontRandomize !== false) fontRandomize.classList.add('active');
         });
     }
 
-    // Enhanced protection test
+    // Toggle protection
+    function toggleProtection() {
+        isEnabled = !isEnabled;
+        setStorageData({ protectionEnabled: isEnabled });
+        updateStatus();
+        showNotification(`Protection ${isEnabled ? 'enabled' : 'disabled'}`, 'success');
+    }
+
+    // Test protection
     function testProtection() {
         chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
             if (tabs[0]) {
@@ -347,98 +437,35 @@ document.addEventListener('DOMContentLoaded', function() {
                     return;
                 }
                 
-                // Show loading state
-                testBtn.textContent = '🧪 Testing...';
-                testBtn.disabled = true;
-                
                 chrome.scripting.executeScript({
                     target: {tabId: tabs[0].id},
                     func: () => {
-                        // Enhanced protection test
+                        // Run protection tests
                         const tests = {
                             userAgent: navigator.userAgent.includes('Chrome/120'),
                             platform: navigator.platform === 'Win32',
                             screen: screen.width === 1920 && screen.height === 1080,
-                            webgl: (() => {
-                                try {
-                                    const canvas = document.createElement('canvas');
-                                    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-                                    if (!gl) return false;
-                                    
-                                    const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
-                                    if (debugInfo) {
-                                        const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
-                                        return renderer && renderer.includes('Intel');
-                                    }
-                                    return true;
-                                } catch (e) {
-                                    return false;
-                                }
-                            })(),
-                            canvas: (() => {
-                                try {
-                                    const canvas = document.createElement('canvas');
-                                    const ctx = canvas.getContext('2d');
-                                    if (!ctx) return false;
-                                    
-                                    // Test if canvas fingerprinting is protected
-                                    ctx.fillText('Test', 10, 10);
-                                    const dataURL = canvas.toDataURL();
-                                    return dataURL.length > 0;
-                                } catch (e) {
-                                    return false;
-                                }
-                            })(),
-                            audio: (() => {
-                                try {
-                                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                                    return audioContext.state === 'running' || audioContext.state === 'suspended';
-                                } catch (e) {
-                                    return false;
-                                }
-                            })(),
-                            fonts: navigator.languages && navigator.languages.includes('en-US'),
-                            headers: navigator.userAgent.includes('Chrome/120') && navigator.platform === 'Win32'
+                            webgl: window.WebGLRenderingContext !== undefined,
+                            canvas: window.HTMLCanvasElement !== undefined,
+                            audio: window.AudioContext !== undefined || window.webkitAudioContext !== undefined,
+                            protection: window.AntiFingerprintUtils !== undefined
                         };
                         
                         const passedTests = Object.values(tests).filter(Boolean).length;
                         const totalTests = Object.keys(tests).length;
                         
                         return {
-                            tests,
-                            passedTests,
-                            totalTests,
+                            tests: tests,
+                            passed: passedTests,
+                            total: totalTests,
                             percentage: Math.round((passedTests / totalTests) * 100)
                         };
                     }
-                }).then(results => {
+                }, (results) => {
                     if (results && results[0] && results[0].result) {
-                        const { tests, passedTests, totalTests, percentage } = results[0].result;
-                        
-                        let message = `Protection Test Results:\n\n`;
-                        message += `✅ Passed: ${passedTests}/${totalTests} (${percentage}%)\n\n`;
-                        
-                        Object.entries(tests).forEach(([test, passed]) => {
-                            message += `${passed ? '✅' : '❌'} ${test.charAt(0).toUpperCase() + test.slice(1)}: ${passed ? 'Protected' : 'Vulnerable'}\n`;
-                        });
-                        
-                        if (percentage >= 80) {
-                            showNotification('Excellent protection! All tests passed.', 'success');
-                        } else if (percentage >= 60) {
-                            showNotification('Good protection, but some areas need attention.', 'info');
-                        } else {
-                            showNotification('Protection needs improvement. Check settings.', 'error');
-                        }
-                        
-                        alert(message);
+                        const result = results[0].result;
+                        showNotification(`Protection test: ${result.passed}/${result.total} passed (${result.percentage}%)`, 'success');
                     }
-                }).catch(err => {
-                    console.log('Failed to test protection:', err);
-                    showNotification('Failed to run protection test.', 'error');
-                }).finally(() => {
-                    // Reset button state
-                    testBtn.textContent = '🧪 Test Protection';
-                    testBtn.disabled = false;
                 });
             }
         });
@@ -447,146 +474,75 @@ document.addEventListener('DOMContentLoaded', function() {
     // Toggle debug mode
     function toggleDebugMode() {
         debugMode = !debugMode;
-        
-        setStorageData({debugMode: debugMode}).then(() => {
-            updateStatus();
-            showNotification(
-                debugMode ? 'Debug mode enabled. Check console for detailed logs.' : 'Debug mode disabled.',
-                'info'
-            );
-        }).catch(err => {
-            console.log('Failed to save debug mode:', err);
-            showNotification('Failed to update debug mode.', 'error');
-        });
+        setStorageData({ debugMode: debugMode });
+        updateStatus();
+        showNotification(`Debug mode ${debugMode ? 'enabled' : 'disabled'}`, 'success');
     }
 
-    // Reset protection with confirmation
+    // Reset protection
     function resetProtection() {
-        if (confirm('Are you sure you want to reset all protection settings?\n\nThis will:\n• Disable all protections\n• Clear all stored data\n• Reset to default settings')) {
+        if (confirm('Are you sure you want to reset all protection settings?')) {
             setStorageData({
-                protectionEnabled: false,
-                debugMode: false
-            }).then(() => {
-                updateStatus();
-                updateStats();
-                showNotification('All settings have been reset to defaults.', 'success');
-                
-                // Reload current tab
-                chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-                    if (tabs[0]) {
-                        chrome.tabs.reload(tabs[0].id);
-                    }
-                });
-            }).catch(err => {
-                console.log('Failed to reset protection:', err);
-                showNotification('Failed to reset settings.', 'error');
+                protectionEnabled: true,
+                debugMode: false,
+                enhancedRandomization: true,
+                antiDetection: true,
+                canvasTextRandomize: true,
+                fontRandomize: true
             });
+            updateStatus();
+            setupFeatureToggles();
+            showNotification('Protection settings reset to defaults', 'success');
         }
     }
 
-    // Export logs with enhanced functionality
+    // Export logs
     function exportLogs() {
         chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-            if (tabs[0]) {
-                if (!canInjectScript(tabs[0])) {
-                    showRestrictedUrlMessage();
-                    return;
-                }
-                
+            if (tabs[0] && canInjectScript(tabs[0])) {
                 chrome.scripting.executeScript({
                     target: {tabId: tabs[0].id},
                     func: () => {
-                        // Collect comprehensive logs
-                        const logs = {
+                        // Collect protection data
+                        const data = {
                             timestamp: new Date().toISOString(),
+                            url: window.location.href,
                             userAgent: navigator.userAgent,
                             platform: navigator.platform,
                             screen: {
                                 width: screen.width,
                                 height: screen.height,
-                                availWidth: screen.availWidth,
-                                availHeight: screen.availHeight,
-                                colorDepth: screen.colorDepth,
-                                pixelDepth: screen.pixelDepth
-                            },
-                            window: {
-                                innerWidth: window.innerWidth,
-                                innerHeight: window.innerHeight,
-                                outerWidth: window.outerWidth,
-                                outerHeight: window.outerHeight
-                            },
-                            navigator: {
-                                language: navigator.language,
-                                languages: navigator.languages,
-                                cookieEnabled: navigator.cookieEnabled,
-                                onLine: navigator.onLine,
-                                hardwareConcurrency: navigator.hardwareConcurrency,
-                                deviceMemory: navigator.deviceMemory
+                                colorDepth: screen.colorDepth
                             },
                             protection: {
-                                hasAntiFingerprintUtils: !!window.AntiFingerprintUtils,
-                                hasUserscript: typeof window.lulzactiveUserscript !== 'undefined',
-                                version: window.lulzactiveVersion || 'Unknown'
-                            },
-                            webgl: (() => {
-                                try {
-                                    const canvas = document.createElement('canvas');
-                                    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-                                    if (!gl) return null;
-                                    
-                                    const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
-                                    return {
-                                        vendor: debugInfo ? gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL) : 'Unknown',
-                                        renderer: debugInfo ? gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) : 'Unknown',
-                                        version: gl.getParameter(gl.VERSION),
-                                        shadingLanguageVersion: gl.getParameter(gl.SHADING_LANGUAGE_VERSION)
-                                    };
-                                } catch (e) {
-                                    return null;
-                                }
-                            })(),
-                            canvas: (() => {
-                                try {
-                                    const canvas = document.createElement('canvas');
-                                    const ctx = canvas.getContext('2d');
-                                    if (!ctx) return null;
-                                    
-                                    ctx.fillText('Test', 10, 10);
-                                    return {
-                                        dataURL: canvas.toDataURL().substring(0, 100) + '...',
-                                        width: canvas.width,
-                                        height: canvas.height
-                                    };
-                                } catch (e) {
-                                    return null;
-                                }
-                            })()
+                                extension: window.lulzactiveExtension,
+                                userscript: window.lulzactiveUserscript,
+                                utils: window.AntiFingerprintUtils
+                            }
                         };
                         
-                        return logs;
+                        return data;
                     }
-                }).then(results => {
+                }, (results) => {
                     if (results && results[0] && results[0].result) {
-                        const logs = results[0].result;
-                        const blob = new Blob([JSON.stringify(logs, null, 2)], {type: 'application/json'});
+                        const data = results[0].result;
+                        const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
                         const url = URL.createObjectURL(blob);
                         
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = `lulzactive-logs-${new Date().toISOString().split('T')[0]}.json`;
-                        a.click();
+                        chrome.downloads.download({
+                            url: url,
+                            filename: `protection-logs-${new Date().toISOString().split('T')[0]}.json`
+                        });
                         
-                        URL.revokeObjectURL(url);
-                        showNotification('Logs exported successfully!', 'success');
+                        showNotification('Protection logs exported', 'success');
                     }
-                }).catch(err => {
-                    console.log('Failed to export logs:', err);
-                    showNotification('Failed to export logs.', 'error');
                 });
+            } else {
+                showRestrictedUrlMessage();
             }
         });
     }
 
-    // Initialize the popup
+    // Initialize popup
     initializePopup();
 });

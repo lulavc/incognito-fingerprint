@@ -1,26 +1,22 @@
 {
-  "name": "lulzactive",
-  "version": "0.9.0",
-  "description": "Advanced anti-fingerprinting and anti-tracking browser extension and userscript",
-  "main": "shared-utils.js",
+  "name": "incognito-fingerprint",
+  "version": "0.10.0",
+  "description": "Advanced anti-fingerprinting browser extension and userscript",
+  "main": "background.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/lulavc/incognito-fingerprint.git"
   },
   "keywords": [
     "anti-fingerprinting",
     "privacy",
     "browser-extension",
     "userscript",
-    "anti-tracking"
+    "chrome",
+    "firefox"
   ],
-  "author": "",
+  "author": "lulzactive",
   "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/lulavc/incognito-fingerprint/issues"
-  },
-  "homepage": "https://github.com/lulavc/incognito-fingerprint#readme"
+  "devDependencies": {
+    "eslint": "^8.0.0"
+  }
 }

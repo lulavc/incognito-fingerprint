@@ -10,8 +10,8 @@
         }
 
         body {
-            width: 380px;
-            min-height: 500px;
+            width: 420px;
+            min-height: 600px;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -40,6 +40,17 @@
             font-size: 12px;
             opacity: 0.8;
             font-weight: 400;
+        }
+
+        .version-badge {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 600;
         }
 
         .status-card {
@@ -109,6 +120,39 @@
             border-color: rgba(255, 152, 0, 0.3);
         }
 
+        .protection-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .protection-item {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+            font-size: 11px;
+            transition: all 0.3s ease;
+        }
+
+        .protection-item.active {
+            background: rgba(76, 175, 80, 0.15);
+            border-color: rgba(76, 175, 80, 0.3);
+        }
+
+        .protection-item.inactive {
+            background: rgba(244, 67, 54, 0.15);
+            border-color: rgba(244, 67, 54, 0.3);
+        }
+
+        .protection-icon {
+            font-size: 16px;
+            margin-bottom: 4px;
+            display: block;
+        }
+
         .stats-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -141,6 +185,22 @@
             font-size: 11px;
             opacity: 0.8;
             font-weight: 500;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #45a049);
+            border-radius: 3px;
+            transition: width 0.3s ease;
         }
 
         .main-toggle {
@@ -201,86 +261,93 @@
             font-size: 12px;
             font-weight: 500;
             transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
         }
 
         .control-btn:hover {
-            background: rgba(255, 255, 255, 0.15);
+            background: rgba(255, 255, 255, 0.12);
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
         }
 
-        .control-btn:active {
-            transform: translateY(0);
+        .control-btn.active {
+            background: rgba(76, 175, 80, 0.2);
+            border-color: rgba(76, 175, 80, 0.4);
         }
 
-        .features-section {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+        .feature-toggles {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
             border-radius: 10px;
             padding: 15px;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
         }
 
-        .features-title {
+        .feature-toggles h3 {
             font-size: 14px;
             font-weight: 600;
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .features-list {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-            font-size: 11px;
+            margin-bottom: 12px;
             opacity: 0.9;
-            line-height: 1.4;
         }
 
-        .feature-item {
+        .toggle-item {
             display: flex;
             align-items: center;
-            gap: 6px;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 12px;
         }
 
-        .feature-icon {
-            font-size: 10px;
-            opacity: 0.7;
+        .toggle-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .toggle-label {
+            opacity: 0.8;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 36px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .toggle-switch.active {
+            background: rgba(76, 175, 80, 0.6);
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 16px;
+            height: 16px;
+            background: white;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+        }
+
+        .toggle-switch.active::after {
+            transform: translateX(16px);
         }
 
         .footer {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 10px;
+            text-align: center;
+            font-size: 11px;
             opacity: 0.6;
-            margin-top: 15px;
-            padding-top: 15px;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            margin-top: 20px;
         }
 
-        .version {
-            font-weight: 500;
-        }
-
-        .last-updated {
-            font-style: italic;
-        }
-
-        /* Loading animation */
         .loading {
             display: inline-block;
-            width: 16px;
-            height: 16px;
-            border: 2px solid rgba(255,255,255,0.3);
+            width: 12px;
+            height: 12px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
             border-radius: 50%;
-            border-top-color: #fff;
+            border-top-color: white;
             animation: spin 1s ease-in-out infinite;
         }
 
@@ -288,49 +355,15 @@
             to { transform: rotate(360deg); }
         }
 
-        /* Responsive design */
-        @media (max-width: 400px) {
-            body {
-                width: 100%;
-            }
-            
-            .container {
-                padding: 15px;
-            }
-            
-            .stats-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .controls-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .features-list {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        /* Smooth transitions */
-        .fade-in {
-            animation: fadeIn 0.5s ease-in;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* Tooltip styles */
         .tooltip {
             position: relative;
             cursor: help;
         }
 
-        .tooltip:hover::after {
+        .tooltip::after {
             content: attr(data-tooltip);
             position: absolute;
-            bottom: 100%;
+            bottom: 125%;
             left: 50%;
             transform: translateX(-50%);
             background: rgba(0, 0, 0, 0.8);
@@ -339,131 +372,137 @@
             border-radius: 6px;
             font-size: 11px;
             white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
             z-index: 1000;
-            margin-bottom: 5px;
         }
 
-        /* Progress bar for stats */
-        .progress-bar {
-            width: 100%;
-            height: 4px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 2px;
-            margin-top: 8px;
-            overflow: hidden;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #4CAF50, #45a049);
-            border-radius: 2px;
-            transition: width 0.3s ease;
+        .tooltip:hover::after {
+            opacity: 1;
         }
     </style>
 </head>
 <body>
-    <div class="container fade-in">
+    <div class="container">
         <div class="header">
-            <h1>🕵️ lulzactive</h1>
-            <div class="subtitle">Ultimate Anti-Fingerprinting Protection</div>
+            <div class="version-badge">v0.10.0</div>
+            <h1>🛡️ Incognito Fingerprint</h1>
+            <div class="subtitle">Advanced Anti-Fingerprinting Protection</div>
         </div>
 
+        <!-- Main Status Card -->
         <div class="status-card" id="status">
             <div class="status-header">
-                <div style="display: flex; align-items: center;">
-                    <div class="status-icon" id="statusIcon">🔄</div>
-                    <div class="status-text" id="statusText">Checking status...</div>
+                <div>
+                    <span class="status-icon" id="statusIcon">🛡️</span>
+                    <span class="status-text" id="statusText">Protection Active</span>
                 </div>
             </div>
             <div class="status-description" id="statusDescription">
-                Initializing protection system...
+                Your browser fingerprint is being protected from tracking and identification.
             </div>
         </div>
 
+        <!-- Userscript Status -->
         <div class="userscript-status" id="userscriptStatus">
-            <span>🔍 Checking userscript status...</span>
-            <div class="loading"></div>
+            <span>Userscript Status: <span id="userscriptText">Checking...</span></span>
+            <span class="loading" id="userscriptLoading"></span>
         </div>
 
-        <div class="stats-grid" id="stats">
+        <!-- Protection Features Grid -->
+        <div class="feature-toggles">
+            <h3>🛡️ Protection Features</h3>
+            <div class="protection-grid">
+                <div class="protection-item" id="canvasProtection">
+                    <span class="protection-icon">🎨</span>
+                    <div>Canvas</div>
+                </div>
+                <div class="protection-item" id="webglProtection">
+                    <span class="protection-icon">🎮</span>
+                    <div>WebGL</div>
+                </div>
+                <div class="protection-item" id="audioProtection">
+                    <span class="protection-icon">🔊</span>
+                    <div>Audio</div>
+                </div>
+                <div class="protection-item" id="fontProtection">
+                    <span class="protection-icon">📝</span>
+                    <div>Fonts</div>
+                </div>
+                <div class="protection-item" id="navigatorProtection">
+                    <span class="protection-icon">🧭</span>
+                    <div>Navigator</div>
+                </div>
+                <div class="protection-item" id="screenProtection">
+                    <span class="protection-icon">🖥️</span>
+                    <div>Screen</div>
+                </div>
+                <div class="protection-item" id="webrtcProtection">
+                    <span class="protection-icon">📡</span>
+                    <div>WebRTC</div>
+                </div>
+                <div class="protection-item" id="batteryProtection">
+                    <span class="protection-icon">🔋</span>
+                    <div>Battery</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics -->
+        <div class="stats-grid">
             <div class="stat-card">
-                <div class="stat-value" id="overridesCount">0</div>
-                <div class="stat-label">Active Protections</div>
+                <div class="stat-value" id="overridesCount">12</div>
+                <div class="stat-label">Protections Active</div>
                 <div class="progress-bar">
-                    <div class="progress-fill" id="protectionProgress" style="width: 0%"></div>
+                    <div class="progress-fill" id="protectionProgress" style="width: 100%"></div>
                 </div>
             </div>
             <div class="stat-card">
-                <div class="stat-value" id="trackersBlocked">0</div>
+                <div class="stat-value" id="trackersBlocked">8</div>
                 <div class="stat-label">Trackers Blocked</div>
                 <div class="progress-bar">
-                    <div class="progress-fill" id="trackerProgress" style="width: 0%"></div>
+                    <div class="progress-fill" id="trackerProgress" style="width: 80%"></div>
                 </div>
             </div>
         </div>
 
+        <!-- Main Toggle -->
         <button class="main-toggle" id="toggleBtn">
-            <span id="toggleText">Toggle Protection</span>
+            <span id="toggleText">Disable Protection</span>
         </button>
-        
+
+        <!-- Control Buttons -->
         <div class="controls-grid">
-            <button class="control-btn tooltip" id="testBtn" data-tooltip="Test protection on current page">
-                🧪 Test Protection
-            </button>
-            <button class="control-btn tooltip" id="debugBtn" data-tooltip="Enable debug mode for detailed logs">
-                🐛 Debug Mode
-            </button>
-            <button class="control-btn tooltip" id="resetBtn" data-tooltip="Reset all protection settings">
-                🔄 Reset
-            </button>
-            <button class="control-btn tooltip" id="exportBtn" data-tooltip="Export protection logs and data">
-                📊 Export Logs
-            </button>
+            <button class="control-btn" id="testBtn">🧪 Test Protection</button>
+            <button class="control-btn" id="debugBtn">🐛 Debug Mode</button>
+            <button class="control-btn" id="resetBtn">🔄 Reset</button>
+            <button class="control-btn" id="exportBtn">📤 Export Logs</button>
         </div>
 
-        <div class="features-section">
-            <div class="features-title">
-                🛡️ Protection Features
+        <!-- Feature Toggles -->
+        <div class="feature-toggles">
+            <h3>⚙️ Advanced Settings</h3>
+            <div class="toggle-item">
+                <span class="toggle-label tooltip" data-tooltip="Enable enhanced randomization for better protection">Enhanced Randomization</span>
+                <div class="toggle-switch active" id="enhancedRandomization"></div>
             </div>
-            <div class="features-list">
-                <div class="feature-item">
-                    <span class="feature-icon">✅</span>
-                    <span>Chrome/Windows Profile</span>
-                </div>
-                <div class="feature-item">
-                    <span class="feature-icon">✅</span>
-                    <span>WebGL Protection</span>
-                </div>
-                <div class="feature-item">
-                    <span class="feature-icon">✅</span>
-                    <span>Canvas Randomization</span>
-                </div>
-                <div class="feature-item">
-                    <span class="feature-icon">✅</span>
-                    <span>Font Spoofing</span>
-                </div>
-                <div class="feature-item">
-                    <span class="feature-icon">✅</span>
-                    <span>Audio Context</span>
-                </div>
-                <div class="feature-item">
-                    <span class="feature-icon">✅</span>
-                    <span>HTTP Headers</span>
-                </div>
-                <div class="feature-item">
-                    <span class="feature-icon">✅</span>
-                    <span>Anti-Tracking</span>
-                </div>
-                <div class="feature-item">
-                    <span class="feature-icon">✅</span>
-                    <span>Behavioral FP</span>
-                </div>
+            <div class="toggle-item">
+                <span class="toggle-label tooltip" data-tooltip="Enable anti-detection measures">Anti-Detection</span>
+                <div class="toggle-switch active" id="antiDetection"></div>
+            </div>
+            <div class="toggle-item">
+                <span class="toggle-label tooltip" data-tooltip="Randomize canvas text positioning">Canvas Text Randomize</span>
+                <div class="toggle-switch active" id="canvasTextRandomize"></div>
+            </div>
+            <div class="toggle-item">
+                <span class="toggle-label tooltip" data-tooltip="Randomize font measurements">Font Randomize</span>
+                <div class="toggle-switch active" id="fontRandomize"></div>
             </div>
         </div>
 
         <div class="footer">
-            <div class="version">v0.9.0</div>
-            <div class="last-updated">Last updated: Today</div>
+            Enhanced protection with advanced anti-fingerprinting features
         </div>
     </div>
 
