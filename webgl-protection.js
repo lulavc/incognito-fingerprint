@@ -1,31 +1,183 @@
-// WebGL fingerprint protection
+// WebGL protection for anti-fingerprinting
 (function() {
-  const getParameter = WebGLRenderingContext.prototype.getParameter;
-  WebGLRenderingContext.prototype.getParameter = function(pname) {
-    // Spoof WebGL parameters with minor random variations
-    const rnd = () => Math.random() * 0.02 - 0.01; // ±1% variation
-    const params = {
-      37445: `WebKit ${Math.floor(601 + rnd()*100)}`, // WEBGL_VERSION
-      37446: `WebKit ${Math.floor(601 + rnd()*100)}`, // SHADING_LANGUAGE_VERSION
-      7938: `Google Inc. (${Math.random().toString(36).substr(2, 8)})`, // UNMASKED_VENDOR_WEBGL
-      7937: `ANGLE (${Math.random().toString(36).substr(2, 8)})` // UNMASKED_RENDERER_WEBGL
-    };
-    return params[pname] || getParameter.call(this, pname);
-  };
-
-  // Add canvas noise similar to 2D canvas protection
-  const getContext = HTMLCanvasElement.prototype.getContext;
-  HTMLCanvasElement.prototype.getContext = function(type) {
-    const context = getContext.apply(this, arguments);
-    if (type === 'webgl' || type === 'experimental-webgl') {
-      const gl = context;
-      gl.clearColor(0, 0, 0, 1);
-      gl.clear(gl.COLOR_BUFFER_BIT);
-      // Add subtle noise pattern
-      const pixels = new Uint8Array(4);
-      crypto.getRandomValues(pixels);
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+  'use strict';
+  
+  // Set up logger for this script
+  if (window.incognitoLogger) {
+    window.incognitoLogger.setScriptName('WebGLProtection');
+  }
+  
+  const log = (message, data) => {
+    if (window.incognitoLogger) {
+      window.incognitoLogger.info(message, data);
+    } else {
+      console.log('[Incognito Fingerprint][WebGLProtection]', message, data);
     }
-    return context;
   };
+  
+  log('Starting WebGL protection...');
+
+  // Override getContext to ensure WebGL always works
+  if (typeof HTMLCanvasElement !== 'undefined') {
+    try {
+      const originalGetContext = HTMLCanvasElement.prototype.getContext;
+      HTMLCanvasElement.prototype.getContext = function(type, attributes) {
+        if (type === 'webgl' || type === 'experimental-webgl') {
+          const context = originalGetContext.call(this, type, attributes);
+          
+          if (context) {
+            // Force WebGL to be supported
+            const getParameter = context.getParameter;
+            context.getParameter = function(pname) {
+              const params = {
+                // WebGL version constants
+                37445: 'WebGL 1.0 (OpenGL ES 2.0 Chromium)',
+                37446: 'WebGL GLSL ES 1.0 (OpenGL ES GLSL ES 1.0 Chromium)',
+                // Vendor/renderer
+                7936: 'Intel Inc.',
+                7937: 'Intel(R) UHD Graphics 620',
+                37447: 'ANGLE',
+                7938: 'Intel Inc.',
+                7939: 'Intel(R) UHD Graphics 620',
+                // Hardware limits
+                3379: 16384,
+                34024: 16384,
+                34930: 4096,
+                35660: 16
+              };
+              
+              if (params[pname] !== undefined) return params[pname];
+              return getParameter.call(this, pname);
+            };
+
+            // Force extensions to be available
+            context.getSupportedExtensions = function() {
+              return [
+                'ANGLE_instanced_arrays',
+                'EXT_blend_minmax',
+                'EXT_color_buffer_half_float',
+                'EXT_disjoint_timer_query',
+                'EXT_float_blend',
+                'EXT_frag_depth',
+                'EXT_shader_texture_lod',
+                'EXT_texture_compression_bptc',
+                'EXT_texture_compression_rgtc',
+                'EXT_texture_filter_anisotropic',
+                'OES_element_index_uint',
+                'OES_standard_derivatives',
+                'OES_texture_float',
+                'OES_texture_float_linear',
+                'OES_texture_half_float',
+                'OES_texture_half_float_linear',
+                'OES_vertex_array_object',
+                'WEBGL_color_buffer_float',
+                'WEBGL_compressed_texture_s3tc',
+                'WEBGL_compressed_texture_s3tc_srgb',
+                'WEBGL_debug_renderer_info',
+                'WEBGL_debug_shaders',
+                'WEBGL_depth_texture',
+                'WEBGL_draw_buffers',
+                'WEBGL_lose_context',
+                'WEBGL_multi_draw'
+              ];
+            };
+
+            // Initialize context
+            context.clearColor(0, 0, 0, 1);
+            context.clear(context.COLOR_BUFFER_BIT);
+          }
+          
+          return context;
+        }
+        
+        return originalGetContext.call(this, type, attributes);
+      };
+    } catch (e) {
+      log('WebGL getContext override failed', e.message);
+    }
+  }
+
+  // Override WebGL2 if available
+  if (typeof WebGL2RenderingContext !== 'undefined') {
+    try {
+      const originalGetContext2 = HTMLCanvasElement.prototype.getContext;
+      HTMLCanvasElement.prototype.getContext = function(type, attributes) {
+        if (type === 'webgl2') {
+          const context = originalGetContext2.call(this, type, attributes);
+          
+          if (context) {
+            // Force WebGL2 to be supported
+            const getParameter = context.getParameter;
+            context.getParameter = function(pname) {
+              const params = {
+                // WebGL2 version constants
+                37445: 'WebGL 2.0 (OpenGL ES 3.0 Chromium)',
+                37446: 'WebGL GLSL ES 3.0 (OpenGL ES GLSL ES 3.0 Chromium)',
+                // Vendor/renderer
+                7936: 'Intel Inc.',
+                7937: 'Intel(R) UHD Graphics 620',
+                37447: 'ANGLE',
+                7938: 'Intel Inc.',
+                7939: 'Intel(R) UHD Graphics 620',
+                // Hardware limits
+                3379: 16384,
+                34024: 16384,
+                34930: 4096,
+                35660: 16
+              };
+              
+              if (params[pname] !== undefined) return params[pname];
+              return getParameter.call(this, pname);
+            };
+
+            // Force WebGL2 extensions
+            context.getSupportedExtensions = function() {
+              return [
+                'ANGLE_instanced_arrays',
+                'EXT_blend_minmax',
+                'EXT_color_buffer_float',
+                'EXT_color_buffer_half_float',
+                'EXT_disjoint_timer_query',
+                'EXT_float_blend',
+                'EXT_frag_depth',
+                'EXT_shader_texture_lod',
+                'EXT_texture_compression_bptc',
+                'EXT_texture_compression_rgtc',
+                'EXT_texture_filter_anisotropic',
+                'OES_element_index_uint',
+                'OES_standard_derivatives',
+                'OES_texture_float',
+                'OES_texture_float_linear',
+                'OES_texture_half_float',
+                'OES_texture_half_float_linear',
+                'OES_vertex_array_object',
+                'WEBGL_color_buffer_float',
+                'WEBGL_compressed_texture_s3tc',
+                'WEBGL_compressed_texture_s3tc_srgb',
+                'WEBGL_debug_renderer_info',
+                'WEBGL_debug_shaders',
+                'WEBGL_depth_texture',
+                'WEBGL_draw_buffers',
+                'WEBGL_lose_context',
+                'WEBGL_multi_draw',
+                'WEBGL_multi_draw_instanced_base_vertex_base_instance'
+              ];
+            };
+
+            // Initialize context
+            context.clearColor(0, 0, 0, 1);
+            context.clear(context.COLOR_BUFFER_BIT);
+          }
+          
+          return context;
+        }
+        
+        return originalGetContext2.call(this, type, attributes);
+      };
+    } catch (e) {
+      log('WebGL2 getContext override failed', e.message);
+    }
+  }
+
+  log('WebGL protection completed');
 })();

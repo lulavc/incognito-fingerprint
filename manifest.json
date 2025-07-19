@@ -1,13 +1,14 @@
 {
   "manifest_version": 3,
   "name": "Incognito Fingerprint",
-  "version": "0.1.0",
+  "version": "0.6.0",
   "description": "Enhance incognito mode with anti-fingerprinting capabilities",
   "permissions": [
     "privacy",
     "webRequest",
-    "webRequestBlocking",
-    "storage"
+    "storage",
+    "downloads",
+    "tabs"
   ],
   "incognito": "split",
   "host_permissions": [
@@ -17,12 +18,29 @@
     {
       "matches": ["<all_urls>"],
       "js": [
+        "script-loader.js",
+        "logger.js",
+        "aggressive-override.js",
+        "shared-utils.js",
+        "debug-panel.js",
+        "immediate-fix.js",
+        "aggressive-language-fix.js",
+        "ultimate-language-fix.js",
+        "comprehensive-navigator-fix.js",
+        "response-spoofing.js",
+        "debug-test.js",
+        "ultimate-fingerprint-fix.js",
+        "advanced-protection.js",
+        "aggressive-protection.js",
         "canvas-protection.js",
         "webgl-protection.js", 
         "audio-context-protection.js",
         "navigator-protection.js",
         "webrtc-protection.js",
-        "font-protection.js"
+        "font-protection.js",
+        "screen-protection.js",
+        "enhanced-protection.js",
+        "userscript-communication.js"
       ],
       "run_at": "document_start"
     }
@@ -42,5 +60,15 @@
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
-  }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "injected-navigator.js",
+        "injected-fonts.js",
+        "injected-webgl.js"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }

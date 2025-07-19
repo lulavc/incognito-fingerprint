@@ -1,0 +1,20 @@
+{
+  "name": "incognito-fingerprint",
+  "version": "1.2.9",
+  "description": "A browser extension that enhances incognito mode browsing with robust anti-fingerprinting capabilities.",
+  "main": "audio-context-protection.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lulavc/incognito-fingerprint.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/lulavc/incognito-fingerprint/issues"
+  },
+  "homepage": "https://github.com/lulavc/incognito-fingerprint#readme"
+}

@@ -1,125 +1,192 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Incognito Fingerprint</title>
+    <meta charset="utf-8">
   <style>
     body {
-      width: 300px;
+            width: 350px;
+            padding: 20px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            margin: 0;
+            font-size: 14px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 20px;
+            font-weight: bold;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .status {
+            background: rgba(255, 255, 255, 0.1);
       padding: 15px;
-      font-family: Arial, sans-serif;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .status.active {
+            background: rgba(76, 175, 80, 0.2);
+            border: 1px solid rgba(76, 175, 80, 0.5);
     }
-    .feature {
-      margin: 10px 0;
+        .status.inactive {
+            background: rgba(244, 67, 54, 0.2);
+            border: 1px solid rgba(244, 67, 54, 0.5);
+        }
+        .userscript-status {
+            background: rgba(255, 255, 255, 0.1);
       padding: 10px;
-      border: 1px solid #eee;
-      border-radius: 4px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            text-align: center;
+            font-size: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
     }
-    .switch {
-      position: relative;
-      display: inline-block;
-      width: 50px;
-      height: 24px;
-      float: right;
+        .userscript-active {
+            background: rgba(76, 175, 80, 0.2);
+            border: 1px solid rgba(76, 175, 80, 0.5);
+        }
+        .userscript-inactive {
+            background: rgba(255, 152, 0, 0.2);
+            border: 1px solid rgba(255, 152, 0, 0.5);
+        }
+        .toggle {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 14px;
+            margin-bottom: 15px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .toggle:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.3);
     }
-    .switch input {
-      opacity: 0;
-      width: 0;
-      height: 0;
+        .toggle.inactive {
+            background: linear-gradient(45deg, #f44336, #da190b);
+        }
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
     }
-    .slider {
-      position: absolute;
+        .control-btn {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 8px 12px;
+            border-radius: 6px;
       cursor: pointer;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background-color: #ccc;
-      transition: .4s;
-      border-radius: 24px;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+        .control-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-1px);
     }
-    .slider:before {
-      position: absolute;
-      content: "";
-      height: 16px;
-      width: 16px;
-      left: 4px;
-      bottom: 4px;
-      background-color: white;
-      transition: .4s;
-      border-radius: 50%;
+        .info {
+            font-size: 12px;
+            opacity: 0.9;
+            text-align: center;
+            line-height: 1.5;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .stat-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: 6px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .stat-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #4CAF50;
     }
-    input:checked + .slider {
-      background-color: #2196F3;
-    }
-    input:checked + .slider:before {
-      transform: translateX(26px);
+        .stat-label {
+            font-size: 10px;
+            opacity: 0.8;
+            margin-top: 5px;
+        }
+        .version {
+            text-align: center;
+            font-size: 10px;
+            opacity: 0.6;
+            margin-top: 10px;
     }
   </style>
 </head>
 <body>
-  <h2>Privacy Settings</h2>
-  
-  <div class="feature">
-    <label>WebRTC Protection
-      <div class="switch">
-        <input type="checkbox" id="webRTC" checked>
-        <span class="slider"></span>
-      </div>
-    </label>
+    <div class="header">
+        <h1>🕵️ lulzactive</h1>
   </div>
 
-  <div class="feature">
-    <label>Header Protection
-      <div class="switch">
-        <input type="checkbox" id="headers" checked>
-        <span class="slider"></span>
-      </div>
-    </label>
+    <div class="status" id="status">
+        <div id="statusText">Checking status...</div>
   </div>
 
-  <div class="feature">
-    <label>Canvas Protection
-      <div class="switch">
-        <input type="checkbox" id="canvas" checked>
-        <span class="slider"></span>
-      </div>
-    </label>
+    <div class="userscript-status" id="userscriptStatus">
+        🔍 Checking userscript status...
   </div>
 
-  <div class="feature">
-    <label>WebGL Protection
-      <div class="switch">
-        <input type="checkbox" id="webgl" checked>
-        <span class="slider"></span>
+    <div class="stats" id="stats">
+        <div class="stat-item">
+            <div class="stat-value" id="overridesCount">0</div>
+            <div class="stat-label">Protections</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value" id="trackersBlocked">0</div>
+            <div class="stat-label">Trackers Blocked</div>
       </div>
-    </label>
   </div>
 
-  <div class="feature">
-    <label>Audio Protection
-      <div class="switch">
-        <input type="checkbox" id="audio" checked>
-        <span class="slider"></span>
-      </div>
-    </label>
+    <button class="toggle" id="toggleBtn">
+        Toggle Protection
+    </button>
+    
+    <div class="controls">
+        <button class="control-btn" id="testBtn">🧪 Test Protection</button>
+        <button class="control-btn" id="debugBtn">🐛 Debug Mode</button>
+        <button class="control-btn" id="resetBtn">🔄 Reset</button>
+        <button class="control-btn" id="exportBtn">📊 Export Logs</button>
   </div>
 
-  <div class="feature">
-    <label>Font Protection
-      <div class="switch">
-        <input type="checkbox" id="font" checked>
-        <span class="slider"></span>
-      </div>
-    </label>
+    <div class="info">
+        <strong>🛡️ Advanced Protection Features:</strong><br>
+        • Chrome/Windows profile spoofing<br>
+        • WebGL & Audio fingerprinting protection<br>
+        • Canvas & Font randomization<br>
+        • Anti-tracking & Tracker blocking<br>
+        • HTTP headers & Network protection<br>
+        • Behavioral fingerprinting prevention<br>
+        • Screen & Window properties spoofing<br>
+        • 🆕 Enhanced userscript integration
   </div>
 
-  <div class="feature">
-    <label>Navigator Protection
-      <div class="switch">
-        <input type="checkbox" id="navigator" checked>
-        <span class="slider"></span>
-      </div>
-    </label>
+    <div class="version">
+        Version 0.6.0 - Ultimate Anti-Fingerprinting Protection
   </div>
 
   <script src="popup.js"></script>
