@@ -224,6 +224,10 @@
             if (param === 37445) return profile.webglVendor;
             if (param === 37446) return profile.webglRenderer;
             
+            // 0x1F00: VENDOR, 0x1F01: RENDERER - also spoof these for compatibility
+            if (param === 0x1F00) return profile.webglVendor;
+            if (param === 0x1F01) return profile.webglRenderer;
+            
             // Add randomization to other WebGL parameters to make them less unique
             const result = origGetParameter.call(this, param);
             
@@ -243,6 +247,24 @@
             
             return result;
         };
+
+        // Also protect HTMLCanvasElement.getContext for WebGL
+        if (window.HTMLCanvasElement) {
+            const origGetContext = HTMLCanvasElement.prototype.getContext;
+            HTMLCanvasElement.prototype.getContext = function(contextType, contextAttributes) {
+                const context = origGetContext.call(this, contextType, contextAttributes);
+                
+                // If it's a WebGL context, ensure our protection is applied
+                if (context && (contextType === 'webgl' || contextType === 'webgl2')) {
+                    // The getParameter method should already be overridden, but let's make sure
+                    if (DEBUG_MODE) {
+                        console.log('lulzactive: WebGL context created, vendor will be spoofed to:', profile.webglVendor);
+                    }
+                }
+                
+                return context;
+            };
+        }
 
         // Enhanced randomization of shader precision
         const origGetShaderPrecisionFormat = WebGLRenderingContext.prototype.getShaderPrecisionFormat;

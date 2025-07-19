@@ -151,8 +151,22 @@ document.addEventListener('DOMContentLoaded', function() {
                                 try {
                                     const canvas = document.createElement('canvas');
                                     const gl = canvas.getContext('webgl');
-                                    return gl && gl.getParameter(gl.VENDOR) === 'Google Inc.';
+                                    if (!gl) return false;
+                                    
+                                    const vendor = gl.getParameter(gl.VENDOR);
+                                    const renderer = gl.getParameter(gl.RENDERER);
+                                    
+                                    // Debug info
+                                    if (window.lulzactiveDebug) {
+                                        console.log('lulzactive: WebGL test - Vendor:', vendor, 'Expected: Google Inc.');
+                                        console.log('lulzactive: WebGL test - Renderer:', renderer);
+                                    }
+                                    
+                                    return vendor === 'Google Inc.';
                                 } catch (e) {
+                                    if (window.lulzactiveDebug) {
+                                        console.log('lulzactive: WebGL test error:', e);
+                                    }
                                     return false;
                                 }
                             })(),
