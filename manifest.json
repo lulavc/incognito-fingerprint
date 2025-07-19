@@ -9,8 +9,23 @@
     "webRequestBlocking",
     "storage"
   ],
+  "incognito": "split",
   "host_permissions": [
     "<all_urls>"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": [
+        "canvas-protection.js",
+        "webgl-protection.js", 
+        "audio-context-protection.js",
+        "navigator-protection.js",
+        "webrtc-protection.js",
+        "font-protection.js"
+      ],
+      "run_at": "document_start"
+    }
   ],
   "background": {
     "service_worker": "background.js"
