@@ -13,7 +13,7 @@
         if (window.AntiFingerprintUtils) {
             // Apply all protections using shared utilities
             try {
-                window.AntiFingerprintUtils.applyAllProtections();
+                window.AntiFingerprintUtils.initialize();
                 protectionApplied = true;
                 
                 // Log success

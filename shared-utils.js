@@ -4,6 +4,9 @@
 (function() {
     'use strict';
 
+    // --- Debug mode ---
+    let DEBUG_MODE = false;
+
     // --- Feature toggles ---
     const PARANOID_CANVAS = false; // true = always blank canvas (paranoid mode)
     const ROUND_SCREEN = false;    // true = round screen size to nearest 100
