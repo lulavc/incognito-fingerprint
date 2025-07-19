@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         lulzactive
 // @namespace    https://greasyfork.org/users/your-username
-// @version      0.3
+// @version      0.4
 // @description  Advanced anti-fingerprinting: Chrome/Windows spoof, font, plugin, WebGL, canvas, and cookie protection
 // @author       YourName
 // @match        *://*/*
@@ -15,6 +15,9 @@ Recommended User-Agent (header):
 Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36
 Recommended Accept-Language (header):
 en-US,en;q=0.9
+
+CRITICAL: The HTTP headers MUST match the JavaScript spoofing for perfect fingerprinting protection.
+Use a User-Agent Switcher extension or browser settings to set these headers.
 */
 
 (function() {

@@ -75,7 +75,7 @@ async function getStorageData(keys) {
 function handleBeforeSendHeaders(details) {
   const headers = details.requestHeaders || [];
   
-  // Force consistent headers for Chrome/Windows profile
+  // Force consistent headers for Chrome/Windows profile (matching JS spoofing)
   const forcedHeaders = {
     userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     acceptLanguage: 'en-US,en;q=0.9'
@@ -93,7 +93,7 @@ function handleBeforeSendHeaders(details) {
              !name.includes('sec-ch-ua-platform');
   });
 
-  // Add spoofed headers for Chrome/Windows
+  // Add spoofed headers for Chrome/Windows (matching JS values)
   filteredHeaders.push({ name: 'User-Agent', value: forcedHeaders.userAgent });
   filteredHeaders.push({ name: 'Accept-Language', value: forcedHeaders.acceptLanguage });
   filteredHeaders.push({ name: 'Accept-Encoding', value: 'gzip, deflate, br' });

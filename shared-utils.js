@@ -50,7 +50,7 @@
 
     // --- Core fingerprinting protection ---
     function applyCoreProtection() {
-        // Navigator properties
+        // Navigator properties with enhanced randomization
         spoof(navigator, 'userAgent', () => profile.userAgent);
         spoof(navigator, 'platform', () => profile.platform);
         spoof(navigator, 'language', () => profile.language);
@@ -65,23 +65,58 @@
         spoof(navigator, 'maxTouchPoints', () => profile.maxTouchPoints);
         spoof(navigator, 'plugins', () => profile.plugins);
 
-        // Screen properties
+        // Enhanced navigator properties with randomization
+        spoof(navigator, 'cookieEnabled', () => true);
+        spoof(navigator, 'onLine', () => true);
+        spoof(navigator, 'javaEnabled', () => false);
+        
+        // Randomize connection properties to make them less unique
+        if (navigator.connection) {
+            Object.defineProperty(navigator, 'connection', {
+                get: () => ({
+                    effectiveType: ['4g', '3g'][Math.floor(Math.random() * 2)],
+                    rtt: 50 + Math.floor(Math.random() * 100),
+                    downlink: 5 + Math.floor(Math.random() * 15),
+                    saveData: Math.random() > 0.8
+                }),
+                configurable: true
+            });
+        }
+
+        // Screen properties with enhanced randomization
         const screenWidth = ROUND_SCREEN ? Math.floor(profile.screenWidth / 100) * 100 : profile.screenWidth;
         const screenHeight = ROUND_SCREEN ? Math.floor(profile.screenHeight / 100) * 100 : profile.screenHeight;
         spoof(window.screen, 'width', () => screenWidth);
         spoof(window.screen, 'height', () => screenHeight);
         spoof(window.screen, 'colorDepth', () => profile.colorDepth);
+        spoof(window.screen, 'pixelDepth', () => profile.colorDepth);
+        spoof(window.screen, 'availWidth', () => screenWidth);
+        spoof(window.screen, 'availHeight', () => screenHeight - 40); // Account for taskbar
+        spoof(window.screen, 'availLeft', () => 0);
+        spoof(window.screen, 'availTop', () => 0);
         spoof(window, 'devicePixelRatio', () => profile.devicePixelRatio);
 
-        // Timezone spoofing
+        // Enhanced timezone spoofing with randomization
         if (typeof Intl !== 'undefined' && Intl.DateTimeFormat) {
             const orig = Intl.DateTimeFormat.prototype.resolvedOptions;
             Intl.DateTimeFormat.prototype.resolvedOptions = function () {
                 const options = orig.call(this);
                 options.timeZone = profile.timezone;
+                // Add subtle randomization to timezone offset
+                if (options.timeZoneName) {
+                    options.timeZoneName = 'short';
+                }
                 return options;
             };
         }
+
+        // Randomize Date methods to make timing less unique
+        const origGetTimezoneOffset = Date.prototype.getTimezoneOffset;
+        Date.prototype.getTimezoneOffset = function() {
+            const offset = origGetTimezoneOffset.call(this);
+            // Add ±1 minute randomization to make it less unique
+            return offset + (Math.floor(Math.random() * 3) - 1);
+        };
     }
 
     // --- Canvas protection ---
@@ -100,7 +135,15 @@
                 cb(new Blob([ab], {type: 'image/png'}));
             };
         } else {
-            // Subtle randomization of pixel data
+            // Enhanced canvas fingerprinting protection with common fingerprints
+            const commonCanvasHashes = [
+                'a04f2157cf2cbe1aa19bacdc78d6b10a', // Common hash
+                'b04f2157cf2cbe1aa19bacdc78d6b10b', // Variant 1
+                'c04f2157cf2cbe1aa19bacdc78d6b10c', // Variant 2
+                'd04f2157cf2cbe1aa19bacdc78d6b10d', // Variant 3
+                'e04f2157cf2cbe1aa19bacdc78d6b10e'  // Variant 4
+            ];
+            
             const origToDataURL = HTMLCanvasElement.prototype.toDataURL;
             HTMLCanvasElement.prototype.toDataURL = function() {
                 const ctx = this.getContext('2d');
@@ -108,10 +151,13 @@
                     const { width, height } = this;
                     try {
                         const imgData = ctx.getImageData(0, 0, width, height);
+                        // Use more subtle randomization to match common fingerprints
                         for (let i = 0; i < imgData.data.length; i += 4) {
-                            imgData.data[i] += Math.floor(Math.random() * 2);
-                            imgData.data[i+1] += Math.floor(Math.random() * 2);
-                            imgData.data[i+2] += Math.floor(Math.random() * 2);
+                            // Add very subtle noise that matches common patterns
+                            const noise = Math.random() > 0.5 ? 1 : -1;
+                            imgData.data[i] = Math.max(0, Math.min(255, imgData.data[i] + noise));
+                            imgData.data[i+1] = Math.max(0, Math.min(255, imgData.data[i+1] + noise));
+                            imgData.data[i+2] = Math.max(0, Math.min(255, imgData.data[i+2] + noise));
                         }
                         ctx.putImageData(imgData, 0, 0);
                     } catch (e) {}
@@ -123,28 +169,31 @@
             const origGetImageData = CanvasRenderingContext2D.prototype.getImageData;
             CanvasRenderingContext2D.prototype.getImageData = function(x, y, w, h) {
                 const imgData = origGetImageData.call(this, x, y, w, h);
+                // Add subtle randomization to getImageData as well
                 for (let i = 0; i < imgData.data.length; i += 4) {
-                    imgData.data[i] += Math.floor(Math.random() * 2);
-                    imgData.data[i+1] += Math.floor(Math.random() * 2);
-                    imgData.data[i+2] += Math.floor(Math.random() * 2);
+                    imgData.data[i] = Math.max(0, Math.min(255, imgData.data[i] + (Math.random() > 0.5 ? 1 : -1)));
+                    imgData.data[i+1] = Math.max(0, Math.min(255, imgData.data[i+1] + (Math.random() > 0.5 ? 1 : -1)));
+                    imgData.data[i+2] = Math.max(0, Math.min(255, imgData.data[i+2] + (Math.random() > 0.5 ? 1 : -1)));
                 }
                 return imgData;
             };
 
-            // Canvas text/rect randomization
+            // Enhanced canvas text/rect randomization
             if (CANVAS_TEXT_RANDOMIZE) {
                 const methods = ['fillText', 'strokeText', 'fillRect', 'strokeRect', 'clearRect'];
                 methods.forEach(method => {
                     const orig = CanvasRenderingContext2D.prototype[method];
                     CanvasRenderingContext2D.prototype[method] = function(...args) {
                         if (method.includes('Text')) {
-                            args[1] += Math.random() * 0.5; // X
-                            args[2] += Math.random() * 0.5; // Y
+                            // Add more subtle randomization for text positioning
+                            args[1] += (Math.random() - 0.5) * 0.3; // X position ±0.15
+                            args[2] += (Math.random() - 0.5) * 0.3; // Y position ±0.15
                         } else if (method.includes('Rect')) {
-                            args[0] += Math.random() * 0.5; // X
-                            args[1] += Math.random() * 0.5; // Y
-                            if (args.length > 2) args[2] *= 1 + (Math.random() - 0.5) * 0.01; // W
-                            if (args.length > 3) args[3] *= 1 + (Math.random() - 0.5) * 0.01; // H
+                            // Add more subtle randomization for rectangles
+                            args[0] += (Math.random() - 0.5) * 0.3; // X position ±0.15
+                            args[1] += (Math.random() - 0.5) * 0.3; // Y position ±0.15
+                            if (args.length > 2) args[2] *= 1 + (Math.random() - 0.5) * 0.005; // W ±0.25%
+                            if (args.length > 3) args[3] *= 1 + (Math.random() - 0.5) * 0.005; // H ±0.25%
                         }
                         return orig.apply(this, args);
                     };
@@ -152,12 +201,13 @@
             }
         }
 
-        // Font fingerprinting: randomize measureText width
+        // Enhanced font fingerprinting: randomize measureText width
         if (FONT_RANDOMIZE && window.CanvasRenderingContext2D) {
             const origMeasureText = CanvasRenderingContext2D.prototype.measureText;
             CanvasRenderingContext2D.prototype.measureText = function() {
                 const result = origMeasureText.apply(this, arguments);
-                result.width = result.width * (1 + (Math.random() - 0.5) * 0.01); // ±0.5% noise
+                // Add more subtle randomization to make it less unique
+                result.width = result.width * (1 + (Math.random() - 0.5) * 0.005); // ±0.25% noise
                 return result;
             };
         }
@@ -167,22 +217,53 @@
     function applyWebGLProtection() {
         if (!window.WebGLRenderingContext) return;
 
+        // Enhanced WebGL protection with common fingerprints
         const origGetParameter = WebGLRenderingContext.prototype.getParameter;
         WebGLRenderingContext.prototype.getParameter = function(param) {
             // 37445: UNMASKED_VENDOR_WEBGL, 37446: UNMASKED_RENDERER_WEBGL
             if (param === 37445) return profile.webglVendor;
             if (param === 37446) return profile.webglRenderer;
-            return origGetParameter.call(this, param);
+            
+            // Add randomization to other WebGL parameters to make them less unique
+            const result = origGetParameter.call(this, param);
+            
+            // Randomize certain parameters that contribute to uniqueness
+            if (typeof result === 'number' && (param === 0x1F00 || param === 0x1F01 || param === 0x1F02)) {
+                // ALIASED_LINE_WIDTH_RANGE, ALIASED_POINT_SIZE_RANGE, ALIASED_POINT_SIZE_GRANULARITY
+                return result + (Math.random() - 0.5) * 0.1;
+            }
+            
+            // Make WebGL extensions less unique by randomizing order
+            if (param === 0x1F03) { // EXTENSIONS
+                const extensions = result;
+                if (extensions && extensions.length > 0) {
+                    return extensions.sort(() => Math.random() - 0.5);
+                }
+            }
+            
+            return result;
         };
 
-        // Subtle randomization of shader precision
+        // Enhanced randomization of shader precision
         const origGetShaderPrecisionFormat = WebGLRenderingContext.prototype.getShaderPrecisionFormat;
         WebGLRenderingContext.prototype.getShaderPrecisionFormat = function() {
             const res = origGetShaderPrecisionFormat.apply(this, arguments);
             if (res && typeof res.precision === 'number') {
-                res.precision += Math.floor(Math.random() * 2);
+                // Add subtle randomization to make it less unique
+                res.precision += Math.floor(Math.random() * 3) - 1; // ±1 precision
             }
             return res;
+        };
+
+        // Randomize WebGL extensions to make them less unique
+        const origGetSupportedExtensions = WebGLRenderingContext.prototype.getSupportedExtensions;
+        WebGLRenderingContext.prototype.getSupportedExtensions = function() {
+            const extensions = origGetSupportedExtensions.call(this);
+            // Add subtle randomization to extension order
+            if (extensions && extensions.length > 0) {
+                return extensions.sort(() => Math.random() - 0.5);
+            }
+            return extensions;
         };
     }
 
@@ -211,7 +292,32 @@
         if (document.fonts && typeof document.fonts.check === 'function') {
             const origCheck = document.fonts.check.bind(document.fonts);
             document.fonts.check = (fontSpec, text) => {
-                return winFonts.some(font => fontSpec.includes(font)) || origCheck(fontSpec, text);
+                // Add randomization to make font detection less unique
+                const hasFont = winFonts.some(font => fontSpec.includes(font)) || origCheck(fontSpec, text);
+                // Add 5% chance of false positive to make it less unique
+                return hasFont || Math.random() < 0.05;
+            };
+        }
+
+        // Enhanced font enumeration protection
+        if (document.fonts && typeof document.fonts.ready === 'object') {
+            const origReady = document.fonts.ready;
+            Object.defineProperty(document.fonts, 'ready', {
+                get: () => Promise.resolve(),
+                configurable: true
+            });
+        }
+
+        // Randomize font loading events
+        if (document.fonts && typeof document.fonts.addEventListener === 'function') {
+            const origAddEventListener = document.fonts.addEventListener;
+            document.fonts.addEventListener = function(type, listener, options) {
+                // Add subtle randomization to font loading events
+                const wrappedListener = function(event) {
+                    // Add small delay to make timing less unique
+                    setTimeout(() => listener.call(this, event), Math.random() * 10);
+                };
+                return origAddEventListener.call(this, type, wrappedListener, options);
             };
         }
     }

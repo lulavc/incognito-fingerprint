@@ -1,155 +1,117 @@
 # lulzactive - Advanced Anti-Fingerprinting Protection
 
-A comprehensive anti-fingerprinting and anti-tracking solution available as both a Chrome extension and a GreasyFork userscript.
+## 🚨 **CRITICAL SETUP REQUIREMENT**
 
-## 🛡️ Features
+**For perfect fingerprinting protection, you MUST synchronize your HTTP headers with the JavaScript spoofing:**
 
-### Core Protection
-- **Chrome/Windows Profile Spoofing**: Consistent Chrome 120 on Windows 10 profile
-- **WebGL Fingerprinting Protection**: Spoofed vendor and renderer information
-- **Canvas Fingerprinting Protection**: Subtle pixel randomization and text/rect adjustments
-- **Audio Context Protection**: Fixed sample rate to prevent audio fingerprinting
-- **Font Fingerprinting Protection**: Windows font set spoofing with randomization
-- **Screen & Window Properties**: Consistent 1920x1080 resolution spoofing
-- **Timezone Protection**: Fixed timezone to prevent location fingerprinting
-- **Plugin Spoofing**: Modern Chrome plugin set (no Flash, no rare plugins)
-
-### Anti-Tracking Features
-- **Tracker Blocking**: Blocks requests to 50+ known tracking domains
-- **XHR/Fetch Interception**: Prevents tracking via AJAX requests
-- **Element Creation Blocking**: Blocks tracking scripts and images
-- **sendBeacon Blocking**: Prevents beacon-based tracking
-- **Battery API Spoofing**: Prevents battery-based fingerprinting
-- **Network Information Spoofing**: Consistent network characteristics
-- **Document Referrer Clearing**: Removes referrer information
-- **Window Name Clearing**: Prevents cross-window tracking
-
-### Advanced Features
-- **Subtle Randomization**: Canvas text/rect positioning and font measurement width
-- **Paranoid Mode**: Optional blank canvas mode for maximum privacy
-- **Screen Rounding**: Optional screen size rounding to nearest 100px
-- **HTTP Header Spoofing**: Extension attempts header modification (limited in Manifest V3)
-- **User-Agent Switcher Integration**: Recommended for perfect header spoofing
-
-## 📦 Installation
-
-### Chrome Extension (v0.6.0)
-1. Download the extension files
-2. Open Chrome and go to `chrome://extensions/`
-3. Enable "Developer mode"
-4. Click "Load unpacked" and select the extension folder
-5. The extension will automatically apply protection
-
-### GreasyFork Userscript (v0.3)
-1. Install a userscript manager (Tampermonkey, Violentmonkey, etc.)
-2. Visit the userscript page on GreasyFork
-3. Click "Install" to add the userscript
-4. The userscript will automatically apply protection on all sites
-
-## 🔧 Configuration
-
-### Feature Toggles (in code)
-```javascript
-const PARANOID_CANVAS = false; // true = always blank canvas
-const ROUND_SCREEN = false;    // true = round screen size
-const FONT_RANDOMIZE = true;   // true = randomize measureText width
-const CANVAS_TEXT_RANDOMIZE = true; // true = randomize text/rect positioning
-```
-
-### Extension Popup
-- **Toggle Protection**: Enable/disable all protections
-- **Test Protection**: Run protection verification tests
-- **Debug Mode**: Toggle console logging
-- **Reset**: Clear all settings and reload
-- **Export Logs**: Download protection data
-
-## 🌐 Perfect Blend-In Setup
-
-For maximum effectiveness, ensure HTTP headers match JavaScript spoofing:
-
-### Recommended User-Agent Switcher Settings:
-- **User-Agent**: `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36`
+- **HTTP User-Agent**: `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36`
 - **Accept-Language**: `en-US,en;q=0.9`
-- **Platform**: `Windows`
 
-### Popular User-Agent Switcher Extensions:
-- User-Agent Switcher and Manager
-- User-Agent Switcher for Chrome
-- Header Editor
+**See [HTTP_HEADER_SETUP.md](HTTP_HEADER_SETUP.md) for detailed setup instructions.**
 
-## 🧪 Testing
+## 📦 **What's Included**
 
-### Manual Testing
-1. Visit fingerprinting test sites (e.g., browserleaks.com, amiunique.org)
-2. Check that values are consistent across sessions
-3. Verify that canvas fingerprints change subtly
-4. Confirm tracker blocking is working
+### 🔧 **Browser Extension (Manifest V3)**
+- Anti-fingerprinting protection for incognito mode
+- WebRTC IP leak prevention
+- Storage management for incognito contexts
+- Popup interface with status and controls
 
-### Extension Testing
-1. Click the extension icon
-2. Click "Test Protection" button
-3. Review the test results in the popup
-4. Check console for detailed logs
+### 📜 **GreasyFork Userscript**
+- Advanced anti-fingerprinting with realistic Chrome/Windows spoofing
+- Canvas, WebGL, and font fingerprinting protection
+- Anti-tracking features and cookie blocking
+- Configurable paranoid mode and screen rounding
 
-## 📊 Protection Coverage
+## 🎯 **Key Features**
 
-| Vector | Protection Level | Notes |
-|--------|------------------|-------|
-| User-Agent | ✅ Full | Chrome 120 on Windows |
-| Platform | ✅ Full | Win32 spoofing |
-| Screen | ✅ Full | 1920x1080 + randomization |
-| WebGL | ✅ Full | Vendor/renderer spoofing |
-| Canvas | ✅ Full | Pixel + text randomization |
-| Fonts | ✅ Full | Windows font set |
-| Audio | ✅ Full | Fixed sample rate |
-| Timezone | ✅ Full | America/New_York |
-| Plugins | ✅ Full | Modern Chrome set |
-| Trackers | ✅ Full | 50+ domains blocked |
-| Battery | ✅ Full | Spoofed values |
-| Network | ✅ Full | Consistent characteristics |
+### **Realistic Profile Spoofing**
+- Chrome 120 on Windows 10 profile
+- Common screen resolutions (1920x1080, 1366x768, etc.)
+- Standard Windows fonts and plugins
+- Realistic WebGL renderers (NVIDIA, AMD, Intel)
 
-## 🔒 Privacy & Security
+### **Advanced Protection**
+- **Canvas Fingerprinting**: Subtle randomization to match common fingerprints
+- **WebGL Fingerprinting**: Vendor/renderer spoofing with parameter randomization
+- **Font Fingerprinting**: Windows font set with detection blocking
+- **Audio Context**: Sample rate and state spoofing
+- **Screen Properties**: Resolution and color depth spoofing
+- **Navigator Properties**: User agent, platform, language, and hardware specs
 
-- **No Data Collection**: The extension and userscript do not collect or transmit any user data
-- **Local Processing**: All protection logic runs locally in the browser
-- **Open Source**: Full source code available for review
-- **No Dependencies**: Minimal external dependencies for maximum privacy
+### **Anti-Tracking Features**
+- Third-party cookie blocking
+- Known tracker domain blocking
+- API spoofing (geolocation, notifications, etc.)
+- Storage access prevention
 
-## 🐛 Troubleshooting
+## 🚀 **Quick Start**
 
-### Common Issues
-1. **Headers don't match**: Use a user-agent switcher extension
-2. **Canvas still unique**: Enable paranoid mode or check randomization settings
-3. **Trackers not blocked**: Check if site uses different tracking methods
-4. **Extension not working**: Reload the page after installation
+### **Extension Installation**
+1. Download the extension files
+2. Open Chrome Extensions (chrome://extensions/)
+3. Enable Developer Mode
+4. Load unpacked extension
+5. Select the extension folder
 
-### Debug Mode
-Enable debug mode in the extension popup to see detailed console logs about protection application.
+### **Userscript Installation**
+1. Install Tampermonkey or Greasemonkey
+2. Install the userscript from [GreasyFork](https://greasyfork.org/)
+3. Configure HTTP headers (see setup guide above)
 
-## 📝 Changelog
+## ⚙️ **Configuration**
 
-### v0.6.0 (Extension) / v0.3 (Userscript)
-- ✅ Fixed syntax errors and code structure
-- ✅ Improved Chrome/Windows profile consistency
-- ✅ Enhanced anti-tracking with 50+ blocked domains
-- ✅ Added subtle canvas and font randomization
-- ✅ Improved WebGL and audio protection
-- ✅ Better HTTP header guidance
-- ✅ Simplified and optimized codebase
-- ✅ Updated UI and popup functionality
+### **Extension Settings**
+- Toggle individual protection features
+- View protection status
+- Debug mode for troubleshooting
 
-### Previous Versions
-- v0.5.0: Initial extension release
-- v0.2: Initial userscript release
+### **Userscript Settings**
+- `PARANOID_CANVAS`: Enable blank canvas (paranoid mode)
+- `ROUND_SCREEN`: Round screen dimensions to common values
+- `CANVAS_TEXT_RANDOMIZE`: Randomize canvas text/rect positioning
+- `FONT_RANDOMIZE`: Randomize font measurements
 
-## 🤝 Contributing
+## 🔍 **Testing Your Protection**
 
-Contributions are welcome! Please ensure any changes maintain the privacy-first approach and don't introduce data collection.
+Test on these fingerprinting sites:
+- [EFF Cover Your Tracks](https://coveryourtracks.eff.org/)
+- [AmIUnique](https://amiunique.org/)
+- [BrowserLeaks](https://browserleaks.com/)
 
-## 📄 License
+## 📊 **Expected Results**
+
+With proper setup, you should see:
+- **Consistent User-Agent**: Windows Chrome 120 in both HTTP and JS
+- **Common Fingerprints**: Canvas and WebGL hashes matching popular profiles
+- **Reduced Uniqueness**: Lower entropy scores on fingerprinting tests
+- **Realistic Values**: All spoofed values matching common Windows/Chrome setups
+
+## 🛠️ **Technical Details**
+
+### **Manifest V3 Compatibility**
+- Service worker background script
+- Limited HTTP header modification (use external tools)
+- Session storage for incognito contexts
+
+### **Userscript Features**
+- Early script injection for maximum protection
+- Profile-based spoofing system
+- Anti-detection measures
+- Communication with extension (if available)
+
+## 📝 **Version History**
+
+- **v0.7.0**: Enhanced canvas/WebGL protection, HTTP header sync guide
+- **v0.6.0**: Advanced anti-tracking features, realistic profiles
+- **v0.5.0**: Userscript-extension communication, improved UI
+- **v0.4.0**: Manifest V3 migration, incognito support
+- **v0.3.0**: Basic anti-fingerprinting protection
+
+## 🤝 **Contributing**
+
+Feel free to submit issues and enhancement requests!
+
+## 📄 **License**
 
 MIT License - see LICENSE file for details.
-
-## ⚠️ Disclaimer
-
-This tool is for educational and privacy protection purposes. Users are responsible for complying with applicable laws and website terms of service.
