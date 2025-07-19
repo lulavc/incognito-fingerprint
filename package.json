@@ -1,8 +1,8 @@
 {
-  "name": "incognito-fingerprint",
-  "version": "1.2.9",
-  "description": "A browser extension that enhances incognito mode browsing with robust anti-fingerprinting capabilities.",
-  "main": "audio-context-protection.js",
+  "name": "lulzactive",
+  "version": "0.6.0",
+  "description": "Advanced anti-fingerprinting and anti-tracking browser extension and userscript",
+  "main": "shared-utils.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -10,9 +10,15 @@
     "type": "git",
     "url": "git+https://github.com/lulavc/incognito-fingerprint.git"
   },
-  "keywords": [],
+  "keywords": [
+    "anti-fingerprinting",
+    "privacy",
+    "browser-extension",
+    "userscript",
+    "anti-tracking"
+  ],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/lulavc/incognito-fingerprint/issues"
   },
