@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ultimate Anti-Fingerprint Protection
 // @namespace    https://github.com/lulzactive/incognito-fingerprint
-// @version      0.10.1
+// @version      0.10.2
 // @description  Advanced anti-fingerprinting protection with realistic Chrome/Windows spoofing
 // @author       lulzactive
 // @license      MIT
@@ -19,15 +19,15 @@
 
     // --- Global indicators for userscript detection ---
     window.lulzactiveUserscript = {
-        version: '0.10.1',
+        version: '0.10.2',
         name: 'lulzactive',
         timestamp: Date.now(),
         source: 'userscript'
     };
-    window.lulzactiveVersion = '0.10.1';
+    window.lulzactiveVersion = '0.10.2';
     window.lulzactiveIsUserscript = true;
     window.AntiFingerprintUtils = {
-        version: '0.10.1',
+        version: '0.10.2',
         isExtension: false,
         isUserscript: true,
         protectionLevel: 'advanced',
@@ -60,7 +60,7 @@
     const profile = {
         id: 'Chrome 120 - Win10',
         userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        platform: 'Win32',
+        platform: 'Win32', // CRITICAL: Must be Win32, not Linux
         language: 'en-US',
         screenWidth: 1920,
         screenHeight: 1080,
@@ -182,9 +182,9 @@
 
     // --- Core fingerprinting protection ---
     function applyCoreProtection() {
-        // Navigator properties with enhanced randomization
+        // CRITICAL: Ensure platform is Win32, not Linux
         spoof(navigator, 'userAgent', () => profile.userAgent);
-        spoof(navigator, 'platform', () => profile.platform);
+        spoof(navigator, 'platform', () => 'Win32'); // Force Win32 platform
         spoof(navigator, 'language', () => profile.language);
         spoof(navigator, 'languages', () => [profile.language, 'en']);
         spoof(navigator, 'hardwareConcurrency', () => {
@@ -204,7 +204,7 @@
         // Enhanced navigator properties with randomization
         spoof(navigator, 'cookieEnabled', () => true);
         spoof(navigator, 'onLine', () => true);
-        spoof(navigator, 'javaEnabled', () => false);
+        spoof(navigator, 'javaEnabled', () => false); // CRITICAL: Must be false for Chrome
         
         // Randomize connection properties to make them less unique
         if (navigator.connection) {
@@ -271,7 +271,7 @@
                 cb(new Blob([ab], {type: 'image/png'}));
             };
         } else {
-            // Enhanced canvas fingerprinting protection with common fingerprints
+            // CRITICAL: Enhanced canvas fingerprinting protection with common fingerprints
             const origToDataURL = HTMLCanvasElement.prototype.toDataURL;
             HTMLCanvasElement.prototype.toDataURL = function() {
                 const ctx = this.getContext('2d');
@@ -379,7 +379,7 @@
             'MAX_PROGRAM_TEXEL_OFFSET': 7
         };
 
-        // Proxy WebGL context to fix shader precision format issues
+        // CRITICAL: Proxy WebGL context to enable WebGL but spoof vendor/renderer
         const originalGetContext = HTMLCanvasElement.prototype.getContext;
         HTMLCanvasElement.prototype.getContext = function(contextType, contextAttributes) {
             const context = originalGetContext.call(this, contextType, contextAttributes);
@@ -485,7 +485,7 @@
     function applyFontProtection() {
         if (!window.document) return;
 
-        // Override font detection to return common Windows fonts
+        // CRITICAL: Override font detection to return common Windows fonts only
         if (window.document.fonts && window.document.fonts.check) {
             const origCheck = window.document.fonts.check;
             window.document.fonts.check = function(font, text) {
@@ -534,7 +534,7 @@
         const origGetBattery = navigator.getBattery;
         navigator.getBattery = function() {
             return origGetBattery.call(this).then(battery => {
-                // Spoof battery properties with realistic values
+                // CRITICAL: Spoof battery properties with realistic values
                 Object.defineProperty(battery, 'level', {
                     get: () => 0.3 + getSubtleRandom(0, 40) / 100, // 30-70% range
                     configurable: true
@@ -587,7 +587,7 @@
 
         const origQuery = navigator.permissions.query;
         navigator.permissions.query = function(permissionDesc) {
-            // Return realistic permission states
+            // CRITICAL: Return realistic permission states instead of all granted
             const permissionStates = {
                 'geolocation': 'denied',
                 'notifications': 'denied',
@@ -755,7 +755,7 @@
 
     // --- Export for external access ---
     window.lulzactiveProtection = {
-        version: '0.10.1',
+        version: '0.10.2',
         applyProtections: applyAllProtections,
         isEnabled: true,
         features: {

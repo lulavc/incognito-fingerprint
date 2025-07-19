@@ -1,6 +1,6 @@
 {
   "name": "incognito-fingerprint",
-  "version": "0.10.1",
+  "version": "0.10.2",
   "description": "Advanced anti-fingerprinting browser extension and userscript",
   "main": "background.js",
   "scripts": {
