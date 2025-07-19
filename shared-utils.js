@@ -487,7 +487,27 @@
         applyFontProtection,
         applyAdditionalProtections,
         applyAntiTrackingProtection,
-        spoof
+        spoof,
+        setDebugMode: function(enabled) {
+            DEBUG_MODE = enabled;
+            if (enabled) {
+                console.log('lulzactive: Debug mode enabled');
+            }
+        },
+        getStats: function() {
+            return {
+                protections: {
+                    core: true,
+                    canvas: true,
+                    webgl: true,
+                    audio: true,
+                    font: true,
+                    antiTracking: true
+                },
+                profile: profile,
+                debugMode: DEBUG_MODE
+            };
+        }
     };
 
     // --- Auto-apply if this script is loaded directly ---

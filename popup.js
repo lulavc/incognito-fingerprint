@@ -1,4 +1,4 @@
-// Enhanced popup functionality for lulzactive extension
+// Enhanced popup functionality for lulzactive extension (Manifest V3)
 document.addEventListener('DOMContentLoaded', function() {
     const statusDiv = document.getElementById('status');
     const statusText = document.getElementById('statusText');
@@ -51,8 +51,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // Get stats from current tab
         chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
             if (tabs[0]) {
-                chrome.tabs.executeScript(tabs[0].id, {
-                    code: `
+                chrome.scripting.executeScript({
+                    target: {tabId: tabs[0].id},
+                    func: () => {
                         // Count active protections
                         let protectionCount = 0;
                         if (window.AntiFingerprintUtils) protectionCount++;
@@ -67,14 +68,18 @@ document.addEventListener('DOMContentLoaded', function() {
                             trackerCount = 50; // Estimated blocked trackers
                         }
                         
-                        [protectionCount, trackerCount];
-                    `
-                }, function(results) {
-                    if (results && results[0]) {
-                        const [protections, trackers] = results[0];
+                        return [protectionCount, trackerCount];
+                    }
+                }).then(results => {
+                    if (results && results[0] && results[0].result) {
+                        const [protections, trackers] = results[0].result;
                         overridesCount.textContent = protections || 0;
                         trackersBlocked.textContent = trackers || 0;
                     }
+                }).catch(err => {
+                    console.log('Failed to get stats:', err);
+                    overridesCount.textContent = '0';
+                    trackersBlocked.textContent = '0';
                 });
             }
         });
@@ -84,18 +89,19 @@ document.addEventListener('DOMContentLoaded', function() {
     function checkUserscriptStatus() {
         chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
             if (tabs[0]) {
-                chrome.tabs.executeScript(tabs[0].id, {
-                    code: `
+                chrome.scripting.executeScript({
+                    target: {tabId: tabs[0].id},
+                    func: () => {
                         // Check if userscript is active
                         if (window.AntiFingerprintUtils) {
-                            'Active';
+                            return 'Active';
                         } else {
-                            'Inactive';
+                            return 'Inactive';
                         }
-                    `
-                }, function(results) {
-                    if (results && results[0]) {
-                        const status = results[0];
+                    }
+                }).then(results => {
+                    if (results && results[0] && results[0].result) {
+                        const status = results[0].result;
                         if (status === 'Active') {
                             userscriptStatus.textContent = '🟢 Userscript: Active';
                             userscriptStatus.className = 'userscript-status userscript-active';
@@ -104,6 +110,10 @@ document.addEventListener('DOMContentLoaded', function() {
                             userscriptStatus.className = 'userscript-status userscript-inactive';
                         }
                     }
+                }).catch(err => {
+                    console.log('Failed to check userscript status:', err);
+                    userscriptStatus.textContent = '🟡 Userscript: Unknown';
+                    userscriptStatus.className = 'userscript-status userscript-inactive';
                 });
             }
         });
@@ -129,32 +139,64 @@ document.addEventListener('DOMContentLoaded', function() {
     function testProtection() {
         chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
             if (tabs[0]) {
-                chrome.tabs.executeScript(tabs[0].id, {
-                    code: `
-                        // Simple protection test
+                chrome.scripting.executeScript({
+                    target: {tabId: tabs[0].id},
+                    func: () => {
+                        // Enhanced protection test
                         const tests = {
                             userAgent: navigator.userAgent.includes('Chrome/120'),
                             platform: navigator.platform === 'Win32',
                             screen: screen.width === 1920 && screen.height === 1080,
                             webgl: (() => {
-                                const canvas = document.createElement('canvas');
-                                const gl = canvas.getContext('webgl');
-                                return gl && gl.getParameter(gl.VENDOR) === 'Google Inc.';
+                                try {
+                                    const canvas = document.createElement('canvas');
+                                    const gl = canvas.getContext('webgl');
+                                    return gl && gl.getParameter(gl.VENDOR) === 'Google Inc.';
+                                } catch (e) {
+                                    return false;
+                                }
                             })(),
                             canvas: (() => {
-                                const canvas = document.createElement('canvas');
-                                const ctx = canvas.getContext('2d');
-                                ctx.fillText('Test', 10, 10);
-                                return canvas.toDataURL().length > 0;
+                                try {
+                                    const canvas = document.createElement('canvas');
+                                    const ctx = canvas.getContext('2d');
+                                    ctx.fillText('Test', 10, 10);
+                                    return canvas.toDataURL().length > 0;
+                                } catch (e) {
+                                    return false;
+                                }
+                            })(),
+                            timezone: (() => {
+                                try {
+                                    return Intl.DateTimeFormat().resolvedOptions().timeZone === 'America/New_York';
+                                } catch (e) {
+                                    return false;
+                                }
+                            })(),
+                            fonts: (() => {
+                                try {
+                                    return document.fonts && document.fonts.check('Arial');
+                                } catch (e) {
+                                    return false;
+                                }
                             })()
                         };
                         
                         const results = Object.entries(tests).map(([test, passed]) => 
-                            \`\${test}: \${passed ? '✅' : '❌'}\`
-                        ).join('\\n');
+                            `${test}: ${passed ? '✅' : '❌'}`
+                        ).join('\n');
                         
-                        alert('Protection Test Results:\\n\\n' + results);
-                    `
+                        const passedCount = Object.values(tests).filter(Boolean).length;
+                        const totalCount = Object.keys(tests).length;
+                        
+                        return `Protection Test Results (${passedCount}/${totalCount} passed):\n\n${results}`;
+                    }
+                }).then(results => {
+                    if (results && results[0] && results[0].result) {
+                        alert(results[0].result);
+                    }
+                }).catch(err => {
+                    alert('Failed to run protection test: ' + err.message);
                 });
             }
         });
@@ -164,8 +206,9 @@ document.addEventListener('DOMContentLoaded', function() {
     function toggleDebugMode() {
         chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
             if (tabs[0]) {
-                chrome.tabs.executeScript(tabs[0].id, {
-                    code: `
+                chrome.scripting.executeScript({
+                    target: {tabId: tabs[0].id},
+                    func: () => {
                         // Toggle console logging
                         if (window.lulzactiveDebug) {
                             window.lulzactiveDebug = !window.lulzactiveDebug;
@@ -174,12 +217,20 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                         
                         console.log('lulzactive: Debug mode ' + (window.lulzactiveDebug ? 'enabled' : 'disabled'));
-                        'Debug mode ' + (window.lulzactiveDebug ? 'enabled' : 'disabled');
-                    `
-                }, function(results) {
-                    if (results && results[0]) {
-                        alert(results[0]);
+                        
+                        // Also toggle debug in AntiFingerprintUtils if available
+                        if (window.AntiFingerprintUtils && window.AntiFingerprintUtils.setDebugMode) {
+                            window.AntiFingerprintUtils.setDebugMode(window.lulzactiveDebug);
+                        }
+                        
+                        return 'Debug mode ' + (window.lulzactiveDebug ? 'enabled' : 'disabled');
                     }
+                }).then(results => {
+                    if (results && results[0] && results[0].result) {
+                        alert(results[0].result);
+                    }
+                }).catch(err => {
+                    alert('Failed to toggle debug mode: ' + err.message);
                 });
             }
         });
@@ -204,8 +255,9 @@ document.addEventListener('DOMContentLoaded', function() {
     function exportLogs() {
         chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
             if (tabs[0]) {
-                chrome.tabs.executeScript(tabs[0].id, {
-                    code: `
+                chrome.scripting.executeScript({
+                    target: {tabId: tabs[0].id},
+                    func: () => {
                         // Collect protection data
                         const data = {
                             timestamp: new Date().toISOString(),
@@ -214,40 +266,60 @@ document.addEventListener('DOMContentLoaded', function() {
                             screen: {
                                 width: screen.width,
                                 height: screen.height,
-                                colorDepth: screen.colorDepth
+                                colorDepth: screen.colorDepth,
+                                pixelDepth: screen.pixelDepth,
+                                availWidth: screen.availWidth,
+                                availHeight: screen.availHeight
                             },
                             webgl: (() => {
-                                const canvas = document.createElement('canvas');
-                                const gl = canvas.getContext('webgl');
-                                return gl ? {
-                                    vendor: gl.getParameter(gl.VENDOR),
-                                    renderer: gl.getParameter(gl.RENDERER)
-                                } : null;
+                                try {
+                                    const canvas = document.createElement('canvas');
+                                    const gl = canvas.getContext('webgl');
+                                    return gl ? {
+                                        vendor: gl.getParameter(gl.VENDOR),
+                                        renderer: gl.getParameter(gl.RENDERER),
+                                        version: gl.getParameter(gl.VERSION)
+                                    } : null;
+                                } catch (e) {
+                                    return null;
+                                }
                             })(),
                             canvas: (() => {
-                                const canvas = document.createElement('canvas');
-                                const ctx = canvas.getContext('2d');
-                                ctx.fillText('Test', 10, 10);
-                                return {
-                                    dataURL: canvas.toDataURL().substring(0, 100) + '...',
-                                    width: canvas.width,
-                                    height: canvas.height
-                                };
+                                try {
+                                    const canvas = document.createElement('canvas');
+                                    const ctx = canvas.getContext('2d');
+                                    ctx.fillText('Test', 10, 10);
+                                    return {
+                                        dataURL: canvas.toDataURL().substring(0, 100) + '...',
+                                        width: canvas.width,
+                                        height: canvas.height
+                                    };
+                                } catch (e) {
+                                    return null;
+                                }
                             })(),
                             protections: {
                                 antiFingerprintUtils: !!window.AntiFingerprintUtils,
                                 userAgentSpoofed: navigator.userAgent.includes('Chrome/120'),
                                 platformSpoofed: navigator.platform === 'Win32',
-                                screenSpoofed: screen.width === 1920
-                            }
+                                screenSpoofed: screen.width === 1920,
+                                timezoneSpoofed: Intl.DateTimeFormat().resolvedOptions().timeZone === 'America/New_York'
+                            },
+                            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                            language: navigator.language,
+                            languages: navigator.languages,
+                            hardwareConcurrency: navigator.hardwareConcurrency,
+                            deviceMemory: navigator.deviceMemory,
+                            cookieEnabled: navigator.cookieEnabled,
+                            doNotTrack: navigator.doNotTrack
                         };
                         
-                        JSON.stringify(data, null, 2);
-                    `
-                }, function(results) {
-                    if (results && results[0]) {
+                        return JSON.stringify(data, null, 2);
+                    }
+                }).then(results => {
+                    if (results && results[0] && results[0].result) {
                         try {
-                            const data = JSON.parse(results[0]);
+                            const data = JSON.parse(results[0].result);
                             const blob = new Blob([JSON.stringify(data, null, 2)], {
                                 type: 'application/json'
                             });
@@ -264,6 +336,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     } else {
                         alert('Failed to collect protection data');
                     }
+                }).catch(err => {
+                    alert('Failed to export logs: ' + err.message);
                 });
             }
         });

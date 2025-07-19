@@ -6,12 +6,12 @@ function handleInstalled() {
   
   // Set basic privacy preferences for WebRTC IP handling - only in regular context
   try {
-    chrome.privacy.network.webRTCIPHandlingPolicy.set({
-      value: 'disable_non_proxied_udp'
+  chrome.privacy.network.webRTCIPHandlingPolicy.set({
+    value: 'disable_non_proxied_udp'
     }).catch((error) => {
       // Ignore errors in incognito context
       console.log('WebRTC policy setting skipped (incognito context):', error.message);
-    });
+  });
   } catch (e) {
     // Ignore errors in incognito context
     console.log('WebRTC policy setting skipped (incognito context):', e.message);
