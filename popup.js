@@ -13,6 +13,42 @@ document.addEventListener('DOMContentLoaded', function() {
 
     let isEnabled = true; // Default to enabled
 
+    // Helper function to safely get storage data (works in both regular and incognito contexts)
+    async function getStorageData(keys) {
+        try {
+            // Try session storage first (for incognito)
+            const result = await chrome.storage.session.get(keys);
+            if (Object.keys(result).length > 0) {
+                return result;
+            }
+        } catch (e) {
+            // Session storage not available
+        }
+        
+        try {
+            // Fallback to local storage
+            return await chrome.storage.local.get(keys);
+        } catch (e) {
+            // Local storage not available, return empty object
+            return {};
+        }
+    }
+
+    // Helper function to safely set storage data (works in both regular and incognito contexts)
+    async function setStorageData(data) {
+        try {
+            // Try session storage first (for incognito)
+            await chrome.storage.session.set(data);
+        } catch (e) {
+            try {
+                // Fallback to local storage
+                await chrome.storage.local.set(data);
+            } catch (e2) {
+                console.log('Failed to save settings:', e2);
+            }
+        }
+    }
+
     // Initialize popup
     function initializePopup() {
         updateStatus();
@@ -29,7 +65,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Update protection status
     function updateStatus() {
-        chrome.storage.local.get(['protectionEnabled'], function(result) {
+        getStorageData(['protectionEnabled']).then(result => {
             isEnabled = result.protectionEnabled !== false; // Default to true
             
             if (isEnabled) {
@@ -43,6 +79,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 toggleBtn.textContent = 'Enable Protection';
                 toggleBtn.className = 'toggle inactive';
             }
+        }).catch(err => {
+            console.log('Failed to get protection status:', err);
+            // Default to enabled if we can't get the status
+            isEnabled = true;
+            statusDiv.className = 'status active';
+            statusText.textContent = '🛡️ Protection Active';
+            toggleBtn.textContent = 'Disable Protection';
+            toggleBtn.className = 'toggle';
         });
     }
 
@@ -123,7 +167,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function toggleProtection() {
         isEnabled = !isEnabled;
         
-        chrome.storage.local.set({protectionEnabled: isEnabled}, function() {
+        setStorageData({protectionEnabled: isEnabled}).then(() => {
             updateStatus();
             
             // Reload current tab to apply changes
@@ -132,6 +176,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     chrome.tabs.reload(tabs[0].id);
                 }
             });
+        }).catch(err => {
+            console.log('Failed to save protection status:', err);
         });
     }
 
@@ -253,7 +299,21 @@ document.addEventListener('DOMContentLoaded', function() {
     // Reset protection
     function resetProtection() {
         if (confirm('This will reset all protection settings and reload the page. Continue?')) {
-            chrome.storage.local.clear(function() {
+            // Clear both session and local storage
+            Promise.all([
+                chrome.storage.session.clear().catch(() => {}),
+                chrome.storage.local.clear().catch(() => {})
+            ]).then(() => {
+                chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+                    if (tabs[0]) {
+                        chrome.tabs.reload(tabs[0].id);
+                    }
+                });
+                updateStatus();
+                updateStats();
+            }).catch(err => {
+                console.log('Failed to clear storage:', err);
+                // Still reload the page even if storage clear fails
                 chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
                     if (tabs[0]) {
                         chrome.tabs.reload(tabs[0].id);
