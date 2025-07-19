@@ -111,6 +111,35 @@ function handleBeforeSendHeaders(details) {
   return { requestHeaders: filteredHeaders };
 }
 
+// Programmatic content script injection for incognito mode
+function injectContentScripts(tabId) {
+  // Inject shared-utils.js first
+  chrome.scripting.executeScript({
+    target: { tabId: tabId },
+    files: ['shared-utils.js']
+  }).then(() => {
+    // Then inject script-loader.js
+    return chrome.scripting.executeScript({
+      target: { tabId: tabId },
+      files: ['script-loader.js']
+    });
+  }).then(() => {
+    console.log('lulzactive: Content scripts injected successfully for tab', tabId);
+  }).catch((error) => {
+    console.log('lulzactive: Failed to inject content scripts for tab', tabId, ':', error);
+  });
+}
+
+// Handle tab updates to ensure content scripts are injected
+function handleTabUpdated(tabId, changeInfo, tab) {
+  if (changeInfo.status === 'complete' && tab.url && tab.url.startsWith('http')) {
+    // Small delay to ensure the page is fully loaded
+    setTimeout(() => {
+      injectContentScripts(tabId);
+    }, 100);
+  }
+}
+
 // --- IMPORTANT: HTTP Header Spoofing Limitations ---
 // Manifest V3 does not allow webRequestBlocking for normal extensions. 
 // For perfect header spoofing, use one of these options:
@@ -156,6 +185,9 @@ function handleMessages(message, sender, sendResponse) {
 
 // Register event listeners.
 chrome.runtime.onInstalled.addListener(handleInstalled);
+
+// Listen for tab updates to inject content scripts
+chrome.tabs.onUpdated.addListener(handleTabUpdated);
 
 // Note: This header modification is limited in Manifest V3
 // For full header control, use a user-agent switcher extension
