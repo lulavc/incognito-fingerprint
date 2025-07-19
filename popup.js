@@ -85,7 +85,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Helper function to show restricted URL message
     function showRestrictedUrlMessage() {
-        alert('This feature cannot run on browser extension pages.\n\nPlease navigate to a regular website (like google.com) and try again.');
+        showNotification('This feature cannot run on browser extension pages. Please navigate to a regular website and try again.', 'error');
     }
 
     // Helper function to show notification
@@ -104,6 +104,8 @@ document.addEventListener('DOMContentLoaded', function() {
             z-index: 10000;
             box-shadow: 0 4px 12px rgba(0,0,0,0.3);
             animation: slideIn 0.3s ease-out;
+            max-width: 300px;
+            word-wrap: break-word;
         `;
         notification.textContent = message;
         document.body.appendChild(notification);
@@ -123,11 +125,11 @@ document.addEventListener('DOMContentLoaded', function() {
         setupFeatureToggles();
 
         // Set up event listeners
-        toggleBtn.addEventListener('click', toggleProtection);
-        testBtn.addEventListener('click', testProtection);
-        debugBtn.addEventListener('click', toggleDebugMode);
-        resetBtn.addEventListener('click', resetProtection);
-        exportBtn.addEventListener('click', exportLogs);
+        if (toggleBtn) toggleBtn.addEventListener('click', toggleProtection);
+        if (testBtn) testBtn.addEventListener('click', testProtection);
+        if (debugBtn) debugBtn.addEventListener('click', toggleDebugMode);
+        if (resetBtn) resetBtn.addEventListener('click', resetProtection);
+        if (exportBtn) exportBtn.addEventListener('click', exportLogs);
 
         // Add CSS animations
         const style = document.createElement('style');
@@ -210,7 +212,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             return {
                                 features: features,
                                 protectionActive: true,
-                                version: protection.version || '0.10.0'
+                                version: protection.version || '0.10.2'
                             };
                         }
                         return { features: features, protectionActive: false };
@@ -234,7 +236,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Set all protections to inactive for restricted pages
                 [canvasProtection, webglProtection, audioProtection, fontProtection, 
                  navigatorProtection, screenProtection, webrtcProtection, batteryProtection].forEach(el => {
-                    updateProtectionIndicator(el, false);
+                    if (el) updateProtectionIndicator(el, false);
                 });
             }
         });
@@ -380,43 +382,51 @@ document.addEventListener('DOMContentLoaded', function() {
     // Setup feature toggles
     function setupFeatureToggles() {
         // Enhanced Randomization toggle
-        enhancedRandomization.addEventListener('click', function() {
-            this.classList.toggle('active');
-            const isActive = this.classList.contains('active');
-            setStorageData({ enhancedRandomization: isActive });
-            showNotification(`Enhanced randomization ${isActive ? 'enabled' : 'disabled'}`, 'success');
-        });
+        if (enhancedRandomization) {
+            enhancedRandomization.addEventListener('click', function() {
+                this.classList.toggle('active');
+                const isActive = this.classList.contains('active');
+                setStorageData({ enhancedRandomization: isActive });
+                showNotification(`Enhanced randomization ${isActive ? 'enabled' : 'disabled'}`, 'success');
+            });
+        }
 
         // Anti-Detection toggle
-        antiDetection.addEventListener('click', function() {
-            this.classList.toggle('active');
-            const isActive = this.classList.contains('active');
-            setStorageData({ antiDetection: isActive });
-            showNotification(`Anti-detection ${isActive ? 'enabled' : 'disabled'}`, 'success');
-        });
+        if (antiDetection) {
+            antiDetection.addEventListener('click', function() {
+                this.classList.toggle('active');
+                const isActive = this.classList.contains('active');
+                setStorageData({ antiDetection: isActive });
+                showNotification(`Anti-detection ${isActive ? 'enabled' : 'disabled'}`, 'success');
+            });
+        }
 
         // Canvas Text Randomize toggle
-        canvasTextRandomize.addEventListener('click', function() {
-            this.classList.toggle('active');
-            const isActive = this.classList.contains('active');
-            setStorageData({ canvasTextRandomize: isActive });
-            showNotification(`Canvas text randomization ${isActive ? 'enabled' : 'disabled'}`, 'success');
-        });
+        if (canvasTextRandomize) {
+            canvasTextRandomize.addEventListener('click', function() {
+                this.classList.toggle('active');
+                const isActive = this.classList.contains('active');
+                setStorageData({ canvasTextRandomize: isActive });
+                showNotification(`Canvas text randomization ${isActive ? 'enabled' : 'disabled'}`, 'success');
+            });
+        }
 
         // Font Randomize toggle
-        fontRandomize.addEventListener('click', function() {
-            this.classList.toggle('active');
-            const isActive = this.classList.contains('active');
-            setStorageData({ fontRandomize: isActive });
-            showNotification(`Font randomization ${isActive ? 'enabled' : 'disabled'}`, 'success');
-        });
+        if (fontRandomize) {
+            fontRandomize.addEventListener('click', function() {
+                this.classList.toggle('active');
+                const isActive = this.classList.contains('active');
+                setStorageData({ fontRandomize: isActive });
+                showNotification(`Font randomization ${isActive ? 'enabled' : 'disabled'}`, 'success');
+            });
+        }
 
         // Load saved toggle states
         getStorageData(['enhancedRandomization', 'antiDetection', 'canvasTextRandomize', 'fontRandomize']).then(result => {
-            if (result.enhancedRandomization !== false) enhancedRandomization.classList.add('active');
-            if (result.antiDetection !== false) antiDetection.classList.add('active');
-            if (result.canvasTextRandomize !== false) canvasTextRandomize.classList.add('active');
-            if (result.fontRandomize !== false) fontRandomize.classList.add('active');
+            if (result.enhancedRandomization !== false && enhancedRandomization) enhancedRandomization.classList.add('active');
+            if (result.antiDetection !== false && antiDetection) antiDetection.classList.add('active');
+            if (result.canvasTextRandomize !== false && canvasTextRandomize) canvasTextRandomize.classList.add('active');
+            if (result.fontRandomize !== false && fontRandomize) fontRandomize.classList.add('active');
         });
     }
 
@@ -465,6 +475,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (results && results[0] && results[0].result) {
                         const result = results[0].result;
                         showNotification(`Protection test: ${result.passed}/${result.total} passed (${result.percentage}%)`, 'success');
+                    } else {
+                        showNotification('Failed to run protection test', 'error');
                     }
                 });
             }
@@ -535,6 +547,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         });
                         
                         showNotification('Protection logs exported', 'success');
+                    } else {
+                        showNotification('Failed to export logs', 'error');
                     }
                 });
             } else {

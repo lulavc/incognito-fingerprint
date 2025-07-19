@@ -6,7 +6,10 @@
   "permissions": [
     "storage",
     "webRequest",
-    "webRequestAuthProvider"
+    "webRequestAuthProvider",
+    "scripting",
+    "downloads",
+    "tabs"
   ],
   "host_permissions": [
     "<all_urls>"
