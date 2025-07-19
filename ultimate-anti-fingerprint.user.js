@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         lulzactive - Ultimate Anti-Fingerprint
 // @namespace    https://greasyfork.org/users/your-username
-// @version      0.8.1
+// @version      0.9.0
 // @description  Advanced anti-fingerprinting: Chrome/Windows spoof, font, plugin, WebGL, canvas, and cookie protection
 // @author       lulzactive
 // @match        *://*/*
@@ -31,12 +31,12 @@ screen, battery, connection, and timezone protection for maximum fingerprinting 
 
     // --- Global indicators for extension detection ---
     window.lulzactiveUserscript = {
-        version: '0.8.1',
+        version: '0.9.0',
         name: 'lulzactive',
         timestamp: Date.now(),
         source: 'userscript'
     };
-    window.lulzactiveVersion = '0.8.1';
+    window.lulzactiveVersion = '0.9.0';
     window.lulzactiveIsUserscript = true;
 
     // --- Feature toggles ---
@@ -179,15 +179,7 @@ screen, battery, connection, and timezone protection for maximum fingerprinting 
                 cb(new Blob([ab], {type: 'image/png'}));
             };
         } else {
-            // Enhanced canvas fingerprinting protection with common fingerprints
-            const commonCanvasHashes = [
-                'a04f2157cf2cbe1aa19bacdc78d6b10a', // Common hash
-                'b04f2157cf2cbe1aa19bacdc78d6b10b', // Variant 1
-                'c04f2157cf2cbe1aa19bacdc78d6b10c', // Variant 2
-                'd04f2157cf2cbe1aa19bacdc78d6b10d', // Variant 3
-                'e04f2157cf2cbe1aa19bacdc78d6b10e'  // Variant 4
-            ];
-            
+            // Enhanced canvas fingerprinting protection with realistic variation
             const origToDataURL = HTMLCanvasElement.prototype.toDataURL;
             HTMLCanvasElement.prototype.toDataURL = function() {
                 const ctx = this.getContext('2d');
@@ -195,10 +187,10 @@ screen, battery, connection, and timezone protection for maximum fingerprinting 
                     const { width, height } = this;
                     try {
                         const imgData = ctx.getImageData(0, 0, width, height);
-                        // Use more subtle randomization to match common fingerprints
+                        // Use more realistic randomization that varies slightly each time
                         for (let i = 0; i < imgData.data.length; i += 4) {
-                            // Add very subtle noise that matches common patterns
-                            const noise = Math.random() > 0.5 ? 1 : -1;
+                            // Add very subtle noise that varies slightly
+                            const noise = (Math.random() - 0.5) * 2; // ±1 pixel variation
                             imgData.data[i] = Math.max(0, Math.min(255, imgData.data[i] + noise));
                             imgData.data[i+1] = Math.max(0, Math.min(255, imgData.data[i+1] + noise));
                             imgData.data[i+2] = Math.max(0, Math.min(255, imgData.data[i+2] + noise));
@@ -253,6 +245,25 @@ screen, battery, connection, and timezone protection for maximum fingerprinting 
     function applyWebGLProtection() {
         if (!window.WebGLRenderingContext) return;
 
+        // Fix WebGL shader precision format issue
+        const origGetShaderPrecisionFormat = WebGLRenderingContext.prototype.getShaderPrecisionFormat;
+        WebGLRenderingContext.prototype.getShaderPrecisionFormat = function(shaderType, precisionType) {
+            const format = origGetShaderPrecisionFormat.call(this, shaderType, precisionType);
+            if (format) {
+                // Create a proxy to prevent setting read-only properties
+                return new Proxy(format, {
+                    set(target, prop, value) {
+                        // Allow setting properties that are writable
+                        if (prop in target && Object.getOwnPropertyDescriptor(target, prop).writable !== false) {
+                            target[prop] = value;
+                        }
+                        return true;
+                    }
+                });
+            }
+            return format;
+        };
+
         // Simple and reliable WebGL protection
         const origGetParameter = WebGLRenderingContext.prototype.getParameter;
         WebGLRenderingContext.prototype.getParameter = function(param) {
@@ -268,6 +279,22 @@ screen, battery, connection, and timezone protection for maximum fingerprinting 
 
         // Also protect WebGL2 contexts
         if (window.WebGL2RenderingContext) {
+            const origGetShaderPrecisionFormat2 = WebGL2RenderingContext.prototype.getShaderPrecisionFormat;
+            WebGL2RenderingContext.prototype.getShaderPrecisionFormat = function(shaderType, precisionType) {
+                const format = origGetShaderPrecisionFormat2.call(this, shaderType, precisionType);
+                if (format) {
+                    return new Proxy(format, {
+                        set(target, prop, value) {
+                            if (prop in target && Object.getOwnPropertyDescriptor(target, prop).writable !== false) {
+                                target[prop] = value;
+                            }
+                            return true;
+                        }
+                    });
+                }
+                return format;
+            };
+
             const origGetParameter2 = WebGL2RenderingContext.prototype.getParameter;
             WebGL2RenderingContext.prototype.getParameter = function(param) {
                 // Spoof vendor and renderer for WebGL2 contexts
@@ -299,6 +326,23 @@ screen, battery, connection, and timezone protection for maximum fingerprinting 
                         if (param === 37446) return profile.webglRenderer; // UNMASKED_RENDERER_WEBGL
                         
                         return origContextGetParameter.call(this, param);
+                    };
+                    
+                    // Also protect getShaderPrecisionFormat on this context
+                    const origContextGetShaderPrecisionFormat = context.getShaderPrecisionFormat;
+                    context.getShaderPrecisionFormat = function(shaderType, precisionType) {
+                        const format = origContextGetShaderPrecisionFormat.call(this, shaderType, precisionType);
+                        if (format) {
+                            return new Proxy(format, {
+                                set(target, prop, value) {
+                                    if (prop in target && Object.getOwnPropertyDescriptor(target, prop).writable !== false) {
+                                        target[prop] = value;
+                                    }
+                                    return true;
+                                }
+                            });
+                        }
+                        return format;
                     };
                     
                     if (DEBUG_MODE) {
@@ -333,13 +377,14 @@ screen, battery, connection, and timezone protection for maximum fingerprinting 
             'Trebuchet MS', 'Verdana', 'Symbol', 'Wingdings'
         ];
 
+        // Ensure fonts are properly detected by not over-aggressively blocking them
         if (document.fonts && typeof document.fonts.check === 'function') {
             const origCheck = document.fonts.check.bind(document.fonts);
             document.fonts.check = (fontSpec, text) => {
-                // Add randomization to make font detection less unique
+                // Allow Windows fonts to be detected normally
                 const hasFont = winFonts.some(font => fontSpec.includes(font)) || origCheck(fontSpec, text);
-                // Add 5% chance of false positive to make it less unique
-                return hasFont || Math.random() < 0.05;
+                // Add very small chance of false positive to make it less unique
+                return hasFont || Math.random() < 0.01; // Reduced from 0.05 to 0.01
             };
         }
 

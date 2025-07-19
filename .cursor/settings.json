@@ -1,0 +1,208 @@
+{
+  "mcpServers": {
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${env:GITHUB_TOKEN}"
+      }
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem"],
+      "env": {
+        "MCP_FILESYSTEM_ROOT": "${workspaceFolder}"
+      }
+    },
+    "brave-search": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-brave-search"],
+      "env": {
+        "BRAVE_API_KEY": "BSAJvUCyeg8xXZwoBvu3ImHUvs3TvYd"
+      }
+    },
+    "web-search": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-web-search"],
+      "env": {
+        "SERPER_API_KEY": "${env:SERPER_API_KEY}"
+      }
+    },
+    "puppeteer": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-puppeteer"],
+      "env": {
+        "PUPPETEER_HEADLESS": "true"
+      }
+    },
+    "git": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-git"],
+      "env": {
+        "GIT_REPO_PATH": "${workspaceFolder}"
+      }
+    },
+    "sqlite": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sqlite"],
+      "env": {
+        "SQLITE_DB_PATH": "${workspaceFolder}/data/extension.db"
+      }
+    },
+    "ollama": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-ollama"],
+      "env": {
+        "OLLAMA_BASE_URL": "http://localhost:11434"
+      }
+    },
+    "memory": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"],
+      "env": {
+        "MCP_MEMORY_PATH": "${workspaceFolder}/.mcp-memory"
+      }
+    },
+    "clock": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-clock"]
+    },
+    "weather": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-weather"]
+    },
+    "system": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-system"]
+    },
+    "process": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-process"]
+    },
+    "network": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-network"]
+    },
+    "docker": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-docker"]
+    },
+    "npm": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-npm"]
+    },
+    "crates": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-crates"]
+    },
+    "pypi": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-pypi"]
+    },
+    "maven": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-maven"]
+    },
+    "nuget": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-nuget"]
+    },
+    "homebrew": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-homebrew"]
+    },
+    "apt": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-apt"]
+    },
+    "yum": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-yum"]
+    },
+    "pacman": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-pacman"]
+    },
+    "zsh": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-zsh"]
+    },
+    "bash": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-bash"]
+    },
+    "powershell": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-powershell"]
+    },
+    "cmd": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-cmd"]
+    }
+  },
+  "cursor.general.enableMCP": true,
+  "cursor.general.enableMCPStreaming": true,
+  "cursor.general.mcpServers": {
+    "github": false,
+    "filesystem": true,
+    "brave-search": true,
+    "web-search": false,
+    "puppeteer": true,
+    "git": true,
+    "sqlite": true,
+    "ollama": false,
+    "memory": true,
+    "clock": true,
+    "weather": true,
+    "system": true,
+    "process": true,
+    "network": true,
+    "docker": true,
+    "npm": true,
+    "crates": true,
+    "pypi": true,
+    "maven": true,
+    "nuget": true,
+    "homebrew": true,
+    "apt": true,
+    "yum": true,
+    "pacman": true,
+    "zsh": true,
+    "bash": true,
+    "powershell": false,
+    "cmd": false
+  },
+  "cursor.general.mcpServerTimeout": 30000,
+  "cursor.general.mcpMaxConcurrentRequests": 10,
+  "cursor.general.mcpRetryAttempts": 3,
+  "cursor.general.mcpRetryDelay": 1000,
+  "cursor.general.mcpLogLevel": "info",
+  "cursor.general.mcpEnableDebugLogging": false,
+  "cursor.general.mcpAutoRestartServers": true,
+  "cursor.general.mcpServerHealthCheck": true,
+  "cursor.general.mcpServerHealthCheckInterval": 60000,
+  "cursor.general.mcpServerHealthCheckTimeout": 5000,
+  "cursor.general.mcpServerHealthCheckRetries": 3,
+  "cursor.general.mcpServerHealthCheckRetryDelay": 2000,
+  "cursor.general.mcpServerHealthCheckAutoRestart": true,
+  "cursor.general.mcpServerHealthCheckLogLevel": "warn",
+  "cursor.general.mcpServerHealthCheckEnableNotifications": true,
+  "cursor.general.mcpServerHealthCheckNotificationTimeout": 5000,
+  "cursor.general.mcpServerHealthCheckNotificationRetries": 2,
+  "cursor.general.mcpServerHealthCheckNotificationRetryDelay": 1000,
+  "cursor.general.mcpServerHealthCheckNotificationAutoRestart": true,
+  "cursor.general.mcpServerHealthCheckNotificationLogLevel": "error",
+  "cursor.general.mcpServerHealthCheckNotificationEnableSound": false,
+  "cursor.general.mcpServerHealthCheckNotificationSoundFile": "",
+  "cursor.general.mcpServerHealthCheckNotificationEnableToast": true,
+  "cursor.general.mcpServerHealthCheckNotificationToastTimeout": 3000,
+  "cursor.general.mcpServerHealthCheckNotificationToastPosition": "top-right",
+  "cursor.general.mcpServerHealthCheckNotificationToastTheme": "dark",
+  "cursor.general.mcpServerHealthCheckNotificationToastEnableClose": true,
+  "cursor.general.mcpServerHealthCheckNotificationToastEnableProgress": true,
+  "cursor.general.mcpServerHealthCheckNotificationToastProgressColor": "#007acc",
+  "cursor.general.mcpServerHealthCheckNotificationToastProgressBackground": "#1e1e1e",
+  "cursor.general.mcpServerHealthCheckNotificationToastProgressBorderRadius": "4px",
+  "cursor.general.mcpServerHealthCheckNotificationToastProgressHeight": "2px",
+  "cursor.general.mcpServerHealthCheckNotificationToastProgressWidth": "100%"
+} 

@@ -1,0 +1,36 @@
+# Cursor Rules for Incognito Fingerprint Project
+
+## Project Overview
+This is an advanced anti-fingerprinting browser extension and userscript project that provides comprehensive protection against browser fingerprinting techniques.
+
+## Key Files
+- `manifest.json` - Chrome extension manifest (Manifest V3)
+- `shared-utils.js` - Core anti-fingerprinting utilities
+- `script-loader.js` - Content script loader for incognito mode
+- `popup.js` - Extension popup UI logic
+- `ultimate-anti-fingerprint.user.js` - Comprehensive userscript
+- `background.js` - Extension background service worker
+
+## Development Guidelines
+1. Always update version numbers in manifest.json, package.json, and userscript metadata
+2. Test protection on fingerprinting test sites (Am I Unique, etc.)
+3. Ensure compatibility with incognito mode
+4. Maintain consistent Chrome/Windows profile spoofing
+5. Use subtle randomization to avoid detection
+
+## MCP Server Configuration
+The project uses MCP servers for enhanced development capabilities.
+
+## Code Style
+- Use ES6+ features
+- Follow Chrome extension best practices
+- Implement proper error handling
+- Add debug logging when needed
+- Use consistent naming conventions
+
+## Testing
+- Test on multiple fingerprinting detection sites
+- Verify WebGL, Canvas, and Navigator protection
+- Check extension popup functionality
+- Validate userscript detection
+- Test incognito mode compatibility 

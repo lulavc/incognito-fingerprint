@@ -1,0 +1,23 @@
+# MCP Server API Keys
+# Copy this content to a .env file and fill in your actual API keys
+
+# GitHub Personal Access Token (for GitHub MCP server)
+# Create at: https://github.com/settings/tokens
+GITHUB_TOKEN=your_github_personal_access_token_here
+
+# Brave Search API Key (for Brave Search MCP server)
+# Get at: https://api.search.brave.com/
+BRAVE_API_KEY=your_brave_search_api_key_here
+
+# Serper API Key (for Web Search MCP server)
+# Get at: https://serper.dev/
+SERPER_API_KEY=your_serper_api_key_here
+
+# Optional: Database connection strings
+# POSTGRES_CONNECTION_STRING=postgresql://user:password@localhost:5432/dbname
+# SQLITE_DB_PATH=./data/extension.db
+
+# Optional: AI API Keys (if using AI MCP servers)
+# ANTHROPIC_API_KEY=your_anthropic_api_key_here
+# OPENAI_API_KEY=your_openai_api_key_here
+# OLLAMA_BASE_URL=http://localhost:11434 
