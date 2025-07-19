@@ -1,6 +1,6 @@
 {
   "name": "lulzactive",
-  "version": "0.7.4",
+  "version": "0.7.5",
   "description": "Advanced anti-fingerprinting and anti-tracking browser extension and userscript",
   "main": "shared-utils.js",
   "scripts": {

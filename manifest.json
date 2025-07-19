@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Incognito Fingerprint",
-  "version": "0.7.4",
+  "version": "0.7.5",
   "description": "Enhance incognito mode with anti-fingerprinting capabilities",
   "permissions": [
     "storage",

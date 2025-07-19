@@ -197,7 +197,12 @@ document.addEventListener('DOMContentLoaded', function() {
                                 try {
                                     const canvas = document.createElement('canvas');
                                     const gl = canvas.getContext('webgl');
-                                    if (!gl) return false;
+                                    if (!gl) {
+                                        if (window.lulzactiveDebug) {
+                                            console.log('lulzactive: WebGL test - No WebGL context available');
+                                        }
+                                        return false;
+                                    }
                                     
                                     const vendor = gl.getParameter(gl.VENDOR);
                                     const renderer = gl.getParameter(gl.RENDERER);
@@ -206,9 +211,16 @@ document.addEventListener('DOMContentLoaded', function() {
                                     if (window.lulzactiveDebug) {
                                         console.log('lulzactive: WebGL test - Vendor:', vendor, 'Expected: Google Inc.');
                                         console.log('lulzactive: WebGL test - Renderer:', renderer);
+                                        console.log('lulzactive: WebGL test - VENDOR constant:', gl.VENDOR);
+                                        console.log('lulzactive: WebGL test - Protection active:', !!window.AntiFingerprintUtils);
                                     }
                                     
-                                    return vendor === 'Google Inc.';
+                                    const result = vendor === 'Google Inc.';
+                                    if (!result && window.lulzactiveDebug) {
+                                        console.log('lulzactive: WebGL test - FAILED: Vendor is', vendor, 'but expected Google Inc.');
+                                    }
+                                    
+                                    return result;
                                 } catch (e) {
                                     if (window.lulzactiveDebug) {
                                         console.log('lulzactive: WebGL test error:', e);

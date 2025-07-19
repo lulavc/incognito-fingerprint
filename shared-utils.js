@@ -256,7 +256,20 @@
                 
                 // If it's a WebGL context, ensure our protection is applied
                 if (context && (contextType === 'webgl' || contextType === 'webgl2')) {
-                    // The getParameter method should already be overridden, but let's make sure
+                    // Override getParameter method directly on this context instance
+                    const origContextGetParameter = context.getParameter;
+                    context.getParameter = function(param) {
+                        // 37445: UNMASKED_VENDOR_WEBGL, 37446: UNMASKED_RENDERER_WEBGL
+                        if (param === 37445) return profile.webglVendor;
+                        if (param === 37446) return profile.webglRenderer;
+                        
+                        // 0x1F00: VENDOR, 0x1F01: RENDERER - also spoof these for compatibility
+                        if (param === 0x1F00) return profile.webglVendor;
+                        if (param === 0x1F01) return profile.webglRenderer;
+                        
+                        return origContextGetParameter.call(this, param);
+                    };
+                    
                     if (DEBUG_MODE) {
                         console.log('lulzactive: WebGL context created, vendor will be spoofed to:', profile.webglVendor);
                     }

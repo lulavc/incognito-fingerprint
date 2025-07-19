@@ -97,8 +97,31 @@
                 WebGLRenderingContext.prototype.getParameter = function(param) {
                     if (param === 0x1F00) return 'Google Inc.'; // VENDOR
                     if (param === 0x1F01) return 'ANGLE (NVIDIA GeForce GTX 1660 Ti Direct3D11 vs_5_0 ps_5_0)'; // RENDERER
+                    if (param === 37445) return 'Google Inc.'; // UNMASKED_VENDOR_WEBGL
+                    if (param === 37446) return 'ANGLE (NVIDIA GeForce GTX 1660 Ti Direct3D11 vs_5_0 ps_5_0)'; // UNMASKED_RENDERER_WEBGL
                     return origGetParameter.call(this, param);
                 };
+                
+                // Also protect getContext method
+                if (window.HTMLCanvasElement) {
+                    const origGetContext = HTMLCanvasElement.prototype.getContext;
+                    HTMLCanvasElement.prototype.getContext = function(contextType, contextAttributes) {
+                        const context = origGetContext.call(this, contextType, contextAttributes);
+                        
+                        if (context && (contextType === 'webgl' || contextType === 'webgl2')) {
+                            const origContextGetParameter = context.getParameter;
+                            context.getParameter = function(param) {
+                                if (param === 0x1F00) return 'Google Inc.'; // VENDOR
+                                if (param === 0x1F01) return 'ANGLE (NVIDIA GeForce GTX 1660 Ti Direct3D11 vs_5_0 ps_5_0)'; // RENDERER
+                                if (param === 37445) return 'Google Inc.'; // UNMASKED_VENDOR_WEBGL
+                                if (param === 37446) return 'ANGLE (NVIDIA GeForce GTX 1660 Ti Direct3D11 vs_5_0 ps_5_0)'; // UNMASKED_RENDERER_WEBGL
+                                return origContextGetParameter.call(this, param);
+                            };
+                        }
+                        
+                        return context;
+                    };
+                }
             }
             
             // Basic canvas protection
