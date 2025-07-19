@@ -4,16 +4,29 @@
 (function() {
     'use strict';
 
-    // --- Debug mode ---
-    let DEBUG_MODE = false;
+    // --- Global indicators for extension detection ---
+    window.lulzactiveExtension = {
+        version: '0.9.0',
+        name: 'lulzactive',
+        timestamp: Date.now(),
+        source: 'extension'
+    };
+    window.lulzactiveVersion = '0.9.0';
+    window.lulzactiveIsExtension = true;
+    window.AntiFingerprintUtils = {
+        version: '0.9.0',
+        isExtension: true,
+        isUserscript: false
+    };
 
-    // --- Feature toggles ---
-    const PARANOID_CANVAS = false; // true = always blank canvas (paranoid mode)
-    const ROUND_SCREEN = false;    // true = round screen size to nearest 100
-    const FONT_RANDOMIZE = true;   // true = randomize measureText width
+    // --- Feature toggles (sync with userscript) ---
+    const PARANOID_CANVAS = false;  // true = always blank canvas (paranoid mode)
+    const ROUND_SCREEN = false;     // true = round screen size to nearest 100
+    const FONT_RANDOMIZE = true;    // true = randomize measureText width
     const CANVAS_TEXT_RANDOMIZE = true; // true = randomize fillText/strokeText/rects
+    let DEBUG_MODE = false;         // true = enable debug logging
 
-    // --- Chrome/Windows profile (all common values) ---
+    // --- Chrome/Windows profile (sync with userscript) ---
     const profile = {
         id: 'Chrome 120 - Win10',
         userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -225,9 +238,28 @@
         }
     }
 
-    // --- WebGL protection ---
+    // --- WebGL protection (sync with userscript) ---
     function applyWebGLProtection() {
         if (!window.WebGLRenderingContext) return;
+
+        // Fix WebGL shader precision format issue
+        const origGetShaderPrecisionFormat = WebGLRenderingContext.prototype.getShaderPrecisionFormat;
+        WebGLRenderingContext.prototype.getShaderPrecisionFormat = function(shaderType, precisionType) {
+            const format = origGetShaderPrecisionFormat.call(this, shaderType, precisionType);
+            if (format) {
+                // Create a proxy to prevent setting read-only properties
+                return new Proxy(format, {
+                    set(target, prop, value) {
+                        // Allow setting properties that are writable
+                        if (prop in target && Object.getOwnPropertyDescriptor(target, prop).writable !== false) {
+                            target[prop] = value;
+                        }
+                        return true;
+                    }
+                });
+            }
+            return format;
+        };
 
         // Simple and reliable WebGL protection
         const origGetParameter = WebGLRenderingContext.prototype.getParameter;
@@ -275,6 +307,23 @@
                         if (param === 37446) return profile.webglRenderer; // UNMASKED_RENDERER_WEBGL
                         
                         return origContextGetParameter.call(this, param);
+                    };
+                    
+                    // Also protect getShaderPrecisionFormat on this context
+                    const origContextGetShaderPrecisionFormat = context.getShaderPrecisionFormat;
+                    context.getShaderPrecisionFormat = function(shaderType, precisionType) {
+                        const format = origContextGetShaderPrecisionFormat.call(this, shaderType, precisionType);
+                        if (format) {
+                            return new Proxy(format, {
+                                set(target, prop, value) {
+                                    if (prop in target && Object.getOwnPropertyDescriptor(target, prop).writable !== false) {
+                                        target[prop] = value;
+                                    }
+                                    return true;
+                                }
+                            });
+                        }
+                        return format;
                     };
                     
                     if (DEBUG_MODE) {

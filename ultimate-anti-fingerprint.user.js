@@ -38,6 +38,11 @@ screen, battery, connection, and timezone protection for maximum fingerprinting 
     };
     window.lulzactiveVersion = '0.9.0';
     window.lulzactiveIsUserscript = true;
+    window.AntiFingerprintUtils = {
+        version: '0.9.0',
+        isExtension: false,
+        isUserscript: true
+    };
 
     // --- Feature toggles ---
     const PARANOID_CANVAS = false;  // true = always blank canvas (paranoid mode)
