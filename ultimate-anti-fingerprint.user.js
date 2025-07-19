@@ -1,14 +1,27 @@
 // ==UserScript==
-// @name         Ultimate Anti-Fingerprint Protection
+// @name         Ultimate Anti-Fingerprint Protection v0.10.3
 // @namespace    https://github.com/lulzactive/incognito-fingerprint
-// @version      0.10.2
-// @description  Advanced anti-fingerprinting protection with realistic Chrome/Windows spoofing
+// @version      0.10.3
+// @description  Advanced anti-fingerprinting protection with realistic Chrome/Windows spoofing, enhanced privacy, and comprehensive tracking prevention
 // @author       lulzactive
 // @license      MIT
 // @match        *://*/*
-// @grant        none
+// @exclude      chrome://*
+// @exclude      moz-extension://*
+// @exclude      about:*
+// @exclude      file://*
+// @exclude      data:*
+// @grant        GM_setValue
+// @grant        GM_getValue
+// @grant        GM_deleteValue
+// @grant        GM_listValues
+// @grant        GM_addStyle
+// @grant        GM_setClipboard
+// @grant        GM_notification
+// @grant        GM_xmlhttpRequest
 // @run-at       document-start
 // @inject-into  page
+// @unwrap
 // ==/UserScript==
 
 // Shared utilities for anti-fingerprinting protection
@@ -19,18 +32,36 @@
 
     // --- Global indicators for userscript detection ---
     window.lulzactiveUserscript = {
-        version: '0.10.2',
+        version: '0.10.3',
         name: 'lulzactive',
         timestamp: Date.now(),
-        source: 'userscript'
+        source: 'userscript',
+        features: [
+            'canvas-protection',
+            'webgl-protection', 
+            'audio-protection',
+            'font-protection',
+            'navigator-protection',
+            'screen-protection',
+            'timezone-protection',
+            'webrtc-protection',
+            'battery-protection',
+            'media-devices-protection',
+            'permissions-protection',
+            'storage-protection',
+            'anti-tracking',
+            'fingerprint-blocking',
+            'enhanced-randomization',
+            'anti-detection'
+        ]
     };
-    window.lulzactiveVersion = '0.10.2';
+    window.lulzactiveVersion = '0.10.3';
     window.lulzactiveIsUserscript = true;
     window.AntiFingerprintUtils = {
-        version: '0.10.2',
+        version: '0.10.3',
         isExtension: false,
         isUserscript: true,
-        protectionLevel: 'advanced',
+        protectionLevel: 'ultimate',
         features: {
             canvas: true,
             webgl: true,
@@ -43,46 +74,162 @@
             battery: true,
             mediaDevices: true,
             permissions: true,
-            storage: true
+            storage: true,
+            antiTracking: true,
+            fingerprintBlocking: true,
+            enhancedRandomization: true,
+            antiDetection: true
+        },
+        stats: {
+            protectionsApplied: 0,
+            trackersBlocked: 0,
+            fingerprintsBlocked: 0,
+            startTime: Date.now()
         }
     };
 
-    // --- Feature toggles (sync with extension) ---
-    const PARANOID_CANVAS = false;  // true = always blank canvas (paranoid mode)
-    const ROUND_SCREEN = false;     // true = round screen size to nearest 100
-    const FONT_RANDOMIZE = true;    // true = randomize measureText width
-    const CANVAS_TEXT_RANDOMIZE = true; // true = randomize fillText/strokeText/rects
-    const ENHANCED_RANDOMIZATION = true; // true = use enhanced randomization
-    const ANTI_DETECTION = true;    // true = enable anti-detection measures
+    // --- Enhanced feature toggles with storage sync ---
+    let PARANOID_CANVAS = false;    // true = always blank canvas (paranoid mode)
+    let ROUND_SCREEN = false;       // true = round screen size to nearest 100
+    let FONT_RANDOMIZE = true;      // true = randomize measureText width
+    let CANVAS_TEXT_RANDOMIZE = true; // true = randomize fillText/strokeText/rects
+    let ENHANCED_RANDOMIZATION = true; // true = use enhanced randomization
+    let ANTI_DETECTION = true;      // true = enable anti-detection measures
+    let ANTI_TRACKING = true;       // true = block tracking scripts
+    let FINGERPRINT_BLOCKING = true; // true = block fingerprinting attempts
+    let ADVANCED_PROTECTION = true; // true = enable advanced protection features
     let DEBUG_MODE = false;         // true = enable debug logging
+    
+    // Load settings from storage
+    function loadSettings() {
+        try {
+            PARANOID_CANVAS = GM_getValue('paranoidCanvas', false);
+            ROUND_SCREEN = GM_getValue('roundScreen', false);
+            FONT_RANDOMIZE = GM_getValue('fontRandomize', true);
+            CANVAS_TEXT_RANDOMIZE = GM_getValue('canvasTextRandomize', true);
+            ENHANCED_RANDOMIZATION = GM_getValue('enhancedRandomization', true);
+            ANTI_DETECTION = GM_getValue('antiDetection', true);
+            ANTI_TRACKING = GM_getValue('antiTracking', true);
+            FINGERPRINT_BLOCKING = GM_getValue('fingerprintBlocking', true);
+            ADVANCED_PROTECTION = GM_getValue('advancedProtection', true);
+            DEBUG_MODE = GM_getValue('debugMode', false);
+        } catch (e) {
+            // Fallback to defaults if storage not available
+        }
+    }
+    
+    // Save settings to storage
+    function saveSettings() {
+        try {
+            GM_setValue('paranoidCanvas', PARANOID_CANVAS);
+            GM_setValue('roundScreen', ROUND_SCREEN);
+            GM_setValue('fontRandomize', FONT_RANDOMIZE);
+            GM_setValue('canvasTextRandomize', CANVAS_TEXT_RANDOMIZE);
+            GM_setValue('enhancedRandomization', ENHANCED_RANDOMIZATION);
+            GM_setValue('antiDetection', ANTI_DETECTION);
+            GM_setValue('antiTracking', ANTI_TRACKING);
+            GM_setValue('fingerprintBlocking', FINGERPRINT_BLOCKING);
+            GM_setValue('advancedProtection', ADVANCED_PROTECTION);
+            GM_setValue('debugMode', DEBUG_MODE);
+        } catch (e) {
+            // Ignore storage errors
+        }
+    }
 
-    // --- Chrome/Windows profile (sync with extension) ---
-    const profile = {
-        id: 'Chrome 120 - Win10',
-        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        platform: 'Win32', // CRITICAL: Must be Win32, not Linux
-        language: 'en-US',
-        screenWidth: 1920,
-        screenHeight: 1080,
-        cores: 8,
-        memory: 8, // Most common value
-        timezone: 'America/New_York',
-        webglVendor: 'Google Inc.',
-        webglRenderer: 'ANGLE (NVIDIA GeForce GTX 1660 Ti Direct3D11 vs_5_0 ps_5_0)',
-        colorDepth: 24,
-        devicePixelRatio: 1,
-        vendor: 'Google Inc.',
-        productSub: '20030107',
-        appVersion: '5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        appName: 'Netscape',
-        doNotTrack: '1',
-        maxTouchPoints: 0,
-        plugins: [
-            { name: 'Chrome PDF Plugin', filename: 'internal-pdf-viewer', description: 'Portable Document Format' },
-            { name: 'Chrome PDF Viewer', filename: 'mhjfbmdgcfjbbpaeojofohoefgiehjai', description: '' },
-            { name: 'Native Client', filename: 'internal-nacl-plugin', description: '' }
-        ]
+    // --- Enhanced Chrome/Windows profile with multiple variants ---
+    const profiles = {
+        'Chrome 120 - Win10 - GTX1660': {
+            id: 'Chrome 120 - Win10 - GTX1660',
+            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            platform: 'Win32',
+            language: 'en-US',
+            screenWidth: 1920,
+            screenHeight: 1080,
+            cores: 8,
+            memory: 16,
+            timezone: 'America/New_York',
+            webglVendor: 'Google Inc.',
+            webglRenderer: 'ANGLE (NVIDIA GeForce GTX 1660 Ti Direct3D11 vs_5_0 ps_5_0)',
+            colorDepth: 24,
+            devicePixelRatio: 1,
+            vendor: 'Google Inc.',
+            productSub: '20030107',
+            appVersion: '5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            appName: 'Netscape',
+            doNotTrack: '1',
+            maxTouchPoints: 0,
+            connection: { effectiveType: '4g', downlink: 10, rtt: 50 }
+        },
+        'Chrome 120 - Win10 - UHD620': {
+            id: 'Chrome 120 - Win10 - UHD620',
+            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            platform: 'Win32',
+            language: 'en-US',
+            screenWidth: 1920,
+            screenHeight: 1080,
+            cores: 8,
+            memory: 8,
+            timezone: 'America/New_York',
+            webglVendor: 'Google Inc.',
+            webglRenderer: 'ANGLE (Intel(R) UHD Graphics 620 Direct3D11 vs_5_0 ps_5_0)',
+            colorDepth: 24,
+            devicePixelRatio: 1,
+            vendor: 'Google Inc.',
+            productSub: '20030107',
+            appVersion: '5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            appName: 'Netscape',
+            doNotTrack: '1',
+            maxTouchPoints: 0,
+            connection: { effectiveType: '4g', downlink: 8, rtt: 60 }
+        },
+        'Chrome 120 - Win10 - RTX3060': {
+            id: 'Chrome 120 - Win10 - RTX3060',
+            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            platform: 'Win32',
+            language: 'en-US',
+            screenWidth: 1920,
+            screenHeight: 1080,
+            cores: 12,
+            memory: 32,
+            timezone: 'America/New_York',
+            webglVendor: 'Google Inc.',
+            webglRenderer: 'ANGLE (NVIDIA GeForce RTX 3060 Direct3D11 vs_5_0 ps_5_0)',
+            colorDepth: 24,
+            devicePixelRatio: 1,
+            vendor: 'Google Inc.',
+            productSub: '20030107',
+            appVersion: '5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            appName: 'Netscape',
+            doNotTrack: '1',
+            maxTouchPoints: 0,
+            connection: { effectiveType: '4g', downlink: 15, rtt: 40 }
+        }
     };
+    
+    // Select profile based on URL or random selection
+    function selectProfile() {
+        const url = window.location.href;
+        const profileKeys = Object.keys(profiles);
+        
+        // Use consistent profile based on domain
+        const domain = window.location.hostname;
+        const hash = domain.split('').reduce((a, b) => {
+            a = ((a << 5) - a) + b.charCodeAt(0);
+            return a & a;
+        }, 0);
+        
+        const selectedIndex = Math.abs(hash) % profileKeys.length;
+        return profiles[profileKeys[selectedIndex]];
+    }
+    
+    const profile = selectProfile();
+    
+    // Enhanced plugins list
+    const plugins = [
+        { name: 'Chrome PDF Plugin', filename: 'internal-pdf-viewer', description: 'Portable Document Format' },
+        { name: 'Chrome PDF Viewer', filename: 'mhjfbmdgcfjbbpaeojofohoefgiehjai', description: '' },
+        { name: 'Native Client', filename: 'internal-nacl-plugin', description: '' }
+    ];
 
     // --- Common canvas hashes database (to avoid unique fingerprints) ---
     const commonCanvasHashes = [
@@ -148,7 +295,7 @@
         }
     }
 
-    // --- Enhanced anti-detection measures ---
+    // --- Enhanced anti-detection and anti-tracking measures ---
     function applyAntiDetection() {
         if (!ANTI_DETECTION) return;
 
@@ -178,9 +325,125 @@
             }
             return str;
         };
+        
+        // Block common fingerprinting detection methods
+        if (FINGERPRINT_BLOCKING) {
+            // Block fingerprinting libraries
+            const blockedLibraries = [
+                'fingerprintjs', 'fingerprint2', 'clientjs', 'fingerprint',
+                'canvas-fingerprint', 'webgl-fingerprint', 'audio-fingerprint'
+            ];
+            
+            blockedLibraries.forEach(lib => {
+                Object.defineProperty(window, lib, {
+                    get: () => undefined,
+                    set: () => {},
+                    configurable: false
+                });
+            });
+            
+            // Block common fingerprinting functions
+            const blockedFunctions = [
+                'getFingerprint', 'getCanvasFingerprint', 'getWebGLFingerprint',
+                'getAudioFingerprint', 'getFontFingerprint', 'getScreenFingerprint'
+            ];
+            
+            blockedFunctions.forEach(func => {
+                Object.defineProperty(window, func, {
+                    get: () => () => null,
+                    set: () => {},
+                    configurable: false
+                });
+            });
+        }
+    }
+    
+    // --- Advanced anti-tracking protection ---
+    function applyAntiTrackingProtection() {
+        if (!ANTI_TRACKING) return;
+        
+        // Block common tracking scripts
+        const trackingPatterns = [
+            /google-analytics\.com/,
+            /googletagmanager\.com/,
+            /facebook\.com/,
+            /doubleclick\.net/,
+            /googlesyndication\.com/,
+            /amazon-adsystem\.com/,
+            /twitter\.com/,
+            /linkedin\.com/,
+            /hotjar\.com/,
+            /mixpanel\.com/,
+            /segment\.com/,
+            /optimizely\.com/,
+            /vwo\.com/,
+            /crazyegg\.com/,
+            /fullstory\.com/,
+            /intercom\.com/,
+            /drift\.com/,
+            /zendesk\.com/,
+            /hubspot\.com/,
+            /mailchimp\.com/
+        ];
+        
+        // Block script loading
+        const originalCreateElement = document.createElement;
+        document.createElement = function(tagName) {
+            const element = originalCreateElement.call(document, tagName);
+            
+            if (tagName.toLowerCase() === 'script') {
+                const originalSetAttribute = element.setAttribute;
+                element.setAttribute = function(name, value) {
+                    if (name === 'src') {
+                        const isTracking = trackingPatterns.some(pattern => pattern.test(value));
+                        if (isTracking) {
+                            if (DEBUG_MODE) console.log('Blocked tracking script:', value);
+                            window.AntiFingerprintUtils.stats.trackersBlocked++;
+                            return element; // Don't set the src
+                        }
+                    }
+                    return originalSetAttribute.call(this, name, value);
+                };
+            }
+            
+            return element;
+        };
+        
+        // Block fetch requests to tracking domains
+        const originalFetch = window.fetch;
+        window.fetch = function(url, options) {
+            const urlString = typeof url === 'string' ? url : url.toString();
+            const isTracking = trackingPatterns.some(pattern => pattern.test(urlString));
+            
+            if (isTracking) {
+                if (DEBUG_MODE) console.log('Blocked tracking fetch:', urlString);
+                window.AntiFingerprintUtils.stats.trackersBlocked++;
+                return Promise.resolve(new Response('', { status: 404 }));
+            }
+            
+            return originalFetch.call(this, url, options);
+        };
+        
+        // Block XMLHttpRequest to tracking domains
+        const originalXHROpen = XMLHttpRequest.prototype.open;
+        XMLHttpRequest.prototype.open = function(method, url, async, user, password) {
+            const isTracking = trackingPatterns.some(pattern => pattern.test(url));
+            
+            if (isTracking) {
+                if (DEBUG_MODE) console.log('Blocked tracking XHR:', url);
+                window.AntiFingerprintUtils.stats.trackersBlocked++;
+                // Return a fake response
+                this.readyState = 4;
+                this.status = 404;
+                this.responseText = '';
+                return;
+            }
+            
+            return originalXHROpen.call(this, method, url, async, user, password);
+        };
     }
 
-    // --- Core fingerprinting protection ---
+    // --- Enhanced core fingerprinting protection ---
     function applyCoreProtection() {
         // CRITICAL: Ensure platform is Win32, not Linux
         spoof(navigator, 'userAgent', () => profile.userAgent);
@@ -198,8 +461,107 @@
         spoof(navigator, 'appVersion', () => profile.appVersion);
         spoof(navigator, 'appName', () => profile.appName);
         spoof(navigator, 'doNotTrack', () => profile.doNotTrack);
+        
+        // Enhanced navigator protection
         spoof(navigator, 'maxTouchPoints', () => profile.maxTouchPoints);
-        spoof(navigator, 'plugins', () => profile.plugins);
+        spoof(navigator, 'onLine', () => true);
+        spoof(navigator, 'cookieEnabled', () => true);
+        spoof(navigator, 'javaEnabled', () => () => false);
+        
+        // Enhanced connection spoofing
+        if (profile.connection) {
+            spoof(navigator, 'connection', () => ({
+                effectiveType: profile.connection.effectiveType,
+                downlink: profile.connection.downlink + getSubtleRandom(-1, 1),
+                rtt: profile.connection.rtt + getSubtleRandom(-5, 5),
+                saveData: false
+            }));
+        }
+        
+        // Enhanced plugins protection
+        const spoofedPlugins = plugins.map(plugin => ({
+            name: plugin.name,
+            filename: plugin.filename,
+            description: plugin.description,
+            length: 1
+        }));
+        
+        spoof(navigator, 'plugins', () => {
+            const pluginArray = Object.create(PluginArray.prototype);
+            spoofedPlugins.forEach((plugin, index) => {
+                const pluginObj = Object.create(Plugin.prototype);
+                Object.defineProperties(pluginObj, {
+                    name: { value: plugin.name, enumerable: true },
+                    filename: { value: plugin.filename, enumerable: true },
+                    description: { value: plugin.description, enumerable: true },
+                    length: { value: plugin.length, enumerable: true }
+                });
+                Object.defineProperty(pluginArray, index, { value: pluginObj, enumerable: true });
+            });
+            Object.defineProperty(pluginArray, 'length', { value: spoofedPlugins.length, enumerable: true });
+            return pluginArray;
+        });
+        
+        // Enhanced mimeTypes protection
+        spoof(navigator, 'mimeTypes', () => {
+            const mimeArray = Object.create(MimeTypeArray.prototype);
+            const mimeTypes = [
+                { type: 'application/pdf', suffixes: 'pdf', description: 'Portable Document Format' },
+                { type: 'application/x-pdf', suffixes: 'pdf', description: 'Portable Document Format' }
+            ];
+            
+            mimeTypes.forEach((mime, index) => {
+                const mimeObj = Object.create(MimeType.prototype);
+                Object.defineProperties(mimeObj, {
+                    type: { value: mime.type, enumerable: true },
+                    suffixes: { value: mime.suffixes, enumerable: true },
+                    description: { value: mime.description, enumerable: true }
+                });
+                Object.defineProperty(mimeArray, index, { value: mimeObj, enumerable: true });
+            });
+            Object.defineProperty(mimeArray, 'length', { value: mimeTypes.length, enumerable: true });
+            return mimeArray;
+        });
+        
+        // Enhanced permissions protection
+        if (navigator.permissions) {
+            const originalQuery = navigator.permissions.query;
+            navigator.permissions.query = function(permissionDesc) {
+                const permission = permissionDesc.name;
+                const blockedPermissions = ['notifications', 'geolocation', 'microphone', 'camera'];
+                
+                if (blockedPermissions.includes(permission)) {
+                    return Promise.resolve({
+                        state: 'denied',
+                        onchange: null
+                    });
+                }
+                
+                return originalQuery.call(this, permissionDesc);
+            };
+        }
+        
+        // Enhanced geolocation protection
+        if (navigator.geolocation) {
+            const originalGetCurrentPosition = navigator.geolocation.getCurrentPosition;
+            const originalWatchPosition = navigator.geolocation.watchPosition;
+            
+            navigator.geolocation.getCurrentPosition = function(success, error, options) {
+                if (error) {
+                    error({ code: 1, message: 'User denied geolocation' });
+                }
+            };
+            
+            navigator.geolocation.watchPosition = function(success, error, options) {
+                if (error) {
+                    error({ code: 1, message: 'User denied geolocation' });
+                }
+                return 1; // Return a fake watch ID
+            };
+        }
+        
+                window.AntiFingerprintUtils.stats.protectionsApplied += 8;
+    }
 
         // Enhanced navigator properties with randomization
         spoof(navigator, 'cookieEnabled', () => true);
@@ -681,56 +1043,17 @@
         }
     }
 
-    // --- Enhanced anti-tracking protection ---
-    function applyAntiTrackingProtection() {
-        // Block known tracking domains
-        const blockedDomains = [
-            'google-analytics.com', 'googletagmanager.com', 'facebook.com',
-            'doubleclick.net', 'googlesyndication.com', 'amazon-adsystem.com',
-            'bing.com', 'yahoo.com', 'twitter.com', 'linkedin.com'
-        ];
 
-        // Block third-party cookies
-        if (document.cookie) {
-            const origCookie = Object.getOwnPropertyDescriptor(Document.prototype, 'cookie');
-            Object.defineProperty(document, 'cookie', {
-                get: origCookie.get,
-                set: function(value) {
-                    // Block third-party cookies
-                    if (value.includes('domain=') || value.includes('path=/')) {
-                        return;
-                    }
-                    return origCookie.set.call(this, value);
-                },
-                configurable: true
-            });
-        }
-
-        // Block tracking scripts
-        const observer = new MutationObserver(function(mutations) {
-            mutations.forEach(function(mutation) {
-                mutation.addedNodes.forEach(function(node) {
-                    if (node.tagName === 'SCRIPT') {
-                        const src = node.src || '';
-                        if (blockedDomains.some(domain => src.includes(domain))) {
-                            node.remove();
-                        }
-                    }
-                });
-            });
-        });
-
-        observer.observe(document, {
-            childList: true,
-            subtree: true
-        });
-    }
 
     // --- Apply all protections ---
     function applyAllProtections() {
         if (DEBUG_MODE) console.log('🛡️ Applying anti-fingerprinting protections...');
         
+        // Load settings first
+        loadSettings();
+        
         applyAntiDetection();
+        applyAntiTrackingProtection();
         applyCoreProtection();
         applyCanvasProtection();
         applyWebGLProtection();
@@ -741,9 +1064,12 @@
         applyPermissionsProtection();
         applyStorageProtection();
         applyWebRTCProtection();
-        applyAntiTrackingProtection();
+        
+        // Save settings after applying protections
+        saveSettings();
         
         if (DEBUG_MODE) console.log('✅ Anti-fingerprinting protections applied');
+        if (DEBUG_MODE) console.log('📊 Stats:', window.AntiFingerprintUtils.stats);
     }
 
     // --- Initialize protection ---
@@ -755,7 +1081,7 @@
 
     // --- Export for external access ---
     window.lulzactiveProtection = {
-        version: '0.10.2',
+        version: '0.10.3',
         applyProtections: applyAllProtections,
         isEnabled: true,
         features: {
@@ -770,7 +1096,16 @@
             battery: true,
             mediaDevices: true,
             permissions: true,
-            storage: true
+            storage: true,
+            antiTracking: true,
+            fingerprintBlocking: true,
+            enhancedRandomization: true,
+            antiDetection: true
+        },
+        stats: window.AntiFingerprintUtils.stats,
+        settings: {
+            load: loadSettings,
+            save: saveSettings
         }
     };
 

@@ -1,8 +1,12 @@
 // Enhanced popup functionality for Incognito Fingerprint extension (Manifest V3)
+// Version: 0.10.3 - Enhanced with better error handling, performance optimizations, and additional features
 
 // Global variables
 let isEnabled = true; // Default to enabled
 let debugMode = false;
+let isInitialized = false;
+let lastUpdateTime = 0;
+let updateInterval = null;
 
 // Global function references
 let statusDiv, statusIcon, statusText, statusDescription;
@@ -17,65 +21,172 @@ let navigatorProtection, screenProtection, webrtcProtection, batteryProtection;
 // Feature toggle elements
 let enhancedRandomization, antiDetection, canvasTextRandomize, fontRandomize;
 
-// Helper function to safely get storage data (works in both regular and incognito contexts)
-async function getStorageData(keys) {
+// Performance tracking
+let performanceMetrics = {
+    lastProtectionCheck: 0,
+    lastStatsUpdate: 0,
+    lastUserscriptCheck: 0,
+    errors: [],
+    warnings: []
+};
+
+// Enhanced error handling with logging
+function logError(error, context = '') {
+    const errorInfo = {
+        timestamp: new Date().toISOString(),
+        error: error.message || error,
+        context: context,
+        stack: error.stack
+    };
+    performanceMetrics.errors.push(errorInfo);
+    console.error(`[Popup Error] ${context}:`, error);
+    
+    // Show user-friendly error notification
+    showNotification(`An error occurred: ${error.message || error}`, 'error');
+}
+
+function logWarning(warning, context = '') {
+    const warningInfo = {
+        timestamp: new Date().toISOString(),
+        warning: warning,
+        context: context
+    };
+    performanceMetrics.warnings.push(warningInfo);
+    console.warn(`[Popup Warning] ${context}:`, warning);
+}
+
+// Enhanced storage functions with better error handling and caching
+const storageCache = new Map();
+const CACHE_DURATION = 30000; // 30 seconds
+
+async function getStorageData(keys, useCache = true) {
+    const cacheKey = Array.isArray(keys) ? keys.sort().join(',') : keys;
+    
+    // Check cache first
+    if (useCache && storageCache.has(cacheKey)) {
+        const cached = storageCache.get(cacheKey);
+        if (Date.now() - cached.timestamp < CACHE_DURATION) {
+            return cached.data;
+        }
+    }
+    
     try {
         // Try session storage first (for incognito)
         const result = await chrome.storage.session.get(keys);
         if (Object.keys(result).length > 0) {
+            // Cache the result
+            storageCache.set(cacheKey, {
+                data: result,
+                timestamp: Date.now()
+            });
             return result;
         }
     } catch (e) {
-        // Session storage not available
+        logWarning(`Session storage failed: ${e.message}`, 'getStorageData');
     }
     
     try {
         // Fallback to local storage
-        return await chrome.storage.local.get(keys);
+        const result = await chrome.storage.local.get(keys);
+        // Cache the result
+        storageCache.set(cacheKey, {
+            data: result,
+            timestamp: Date.now()
+        });
+        return result;
     } catch (e) {
-        // Local storage not available, return empty object
+        logError(e, 'getStorageData - local storage fallback');
         return {};
     }
 }
 
-// Helper function to safely set storage data (works in both regular and incognito contexts)
-async function setStorageData(data) {
+async function setStorageData(data, clearCache = true) {
     try {
         // Try session storage first (for incognito)
         await chrome.storage.session.set(data);
+        
+        // Clear cache if requested
+        if (clearCache) {
+            storageCache.clear();
+        }
+        
+        return true;
     } catch (e) {
         try {
             // Fallback to local storage
             await chrome.storage.local.set(data);
+            
+            // Clear cache if requested
+            if (clearCache) {
+                storageCache.clear();
+            }
+            
+            return true;
         } catch (e2) {
-            console.log('Failed to save settings:', e2);
+            logError(e2, 'setStorageData - both storages failed');
+            return false;
         }
     }
 }
 
-// Helper function to check if script injection is allowed
+// Enhanced script injection with better validation
 function canInjectScript(tab) {
-    return tab && tab.url && 
-           !tab.url.startsWith('chrome-extension://') && 
-           !tab.url.startsWith('chrome://') && 
-           !tab.url.startsWith('moz-extension://') &&
-           !tab.url.startsWith('about:') &&
-           !tab.url.startsWith('edge://');
+    if (!tab || !tab.url) return false;
+    
+    const restrictedPatterns = [
+        /^chrome-extension:\/\//,
+        /^chrome:\/\//,
+        /^moz-extension:\/\//,
+        /^about:/,
+        /^edge:\/\//,
+        /^file:\/\//,
+        /^data:/
+    ];
+    
+    return !restrictedPatterns.some(pattern => pattern.test(tab.url));
 }
 
-// Helper function to show restricted URL message
-function showRestrictedUrlMessage() {
-    showNotification('This feature cannot run on browser extension pages. Please navigate to a regular website and try again.', 'error');
+// Enhanced notification system with queue and better styling
+const notificationQueue = [];
+let isShowingNotification = false;
+
+function showNotification(message, type = 'info', duration = 3000) {
+    const notification = {
+        message,
+        type,
+        duration,
+        timestamp: Date.now()
+    };
+    
+    notificationQueue.push(notification);
+    
+    if (!isShowingNotification) {
+        processNotificationQueue();
+    }
 }
 
-// Helper function to show notification
-function showNotification(message, type = 'info') {
-    const notification = document.createElement('div');
-    notification.style.cssText = `
+function processNotificationQueue() {
+    if (notificationQueue.length === 0) {
+        isShowingNotification = false;
+        return;
+    }
+    
+    isShowingNotification = true;
+    const notification = notificationQueue.shift();
+    
+    const notificationElement = document.createElement('div');
+    const typeColors = {
+        success: '#4CAF50',
+        error: '#f44336',
+        warning: '#ff9800',
+        info: '#2196F3'
+    };
+    
+    notificationElement.style.cssText = `
         position: fixed;
         top: 20px;
         right: 20px;
-        background: ${type === 'success' ? '#4CAF50' : type === 'error' ? '#f44336' : '#2196F3'};
+        background: ${typeColors[notification.type] || typeColors.info};
         color: white;
         padding: 12px 20px;
         border-radius: 8px;
@@ -86,49 +197,31 @@ function showNotification(message, type = 'info') {
         animation: slideIn 0.3s ease-out;
         max-width: 300px;
         word-wrap: break-word;
+        line-height: 1.4;
+        border-left: 4px solid rgba(255,255,255,0.3);
     `;
-    notification.textContent = message;
-    document.body.appendChild(notification);
     
+    notificationElement.textContent = notification.message;
+    document.body.appendChild(notificationElement);
+    
+    // Auto-remove notification
     setTimeout(() => {
-        notification.style.animation = 'slideOut 0.3s ease-in';
-        setTimeout(() => notification.remove(), 300);
-    }, 3000);
+        notificationElement.style.animation = 'slideOut 0.3s ease-in';
+        setTimeout(() => {
+            if (notificationElement.parentNode) {
+                notificationElement.remove();
+            }
+            processNotificationQueue();
+        }, 300);
+    }, notification.duration);
 }
 
-// Initialize popup
-function initializePopup() {
-    updateStatus();
-    updateStats();
-    updateProtectionFeatures();
-    checkUserscriptStatus();
-    setupFeatureToggles();
-
-    // Set up event listeners
-    if (toggleBtn) toggleBtn.addEventListener('click', toggleProtection);
-    if (testBtn) testBtn.addEventListener('click', testProtection);
-    if (debugBtn) debugBtn.addEventListener('click', toggleDebugMode);
-    if (resetBtn) resetBtn.addEventListener('click', resetProtection);
-    if (exportBtn) exportBtn.addEventListener('click', exportLogs);
-
-    // Add CSS animations
-    const style = document.createElement('style');
-    style.textContent = `
-        @keyframes slideIn {
-            from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-        @keyframes slideOut {
-            from { transform: translateX(0); opacity: 1; }
-            to { transform: translateX(100%); opacity: 0; }
-        }
-    `;
-    document.head.appendChild(style);
-}
-
-// Update protection status
-function updateStatus() {
-    getStorageData(['protectionEnabled', 'debugMode']).then(result => {
+// Enhanced status update with performance tracking
+async function updateStatus() {
+    const startTime = performance.now();
+    
+    try {
+        const result = await getStorageData(['protectionEnabled', 'debugMode']);
         isEnabled = result.protectionEnabled !== false; // Default to true
         debugMode = result.debugMode || false;
         
@@ -154,8 +247,15 @@ function updateStatus() {
         } else {
             debugBtn.classList.remove('active');
         }
-    }).catch(err => {
-        console.log('Failed to get protection status:', err);
+        
+        performanceMetrics.lastProtectionCheck = Date.now();
+        const duration = performance.now() - startTime;
+        if (duration > 100) {
+            logWarning(`Status update took ${duration.toFixed(2)}ms`, 'updateStatus');
+        }
+        
+    } catch (err) {
+        logError(err, 'updateStatus');
         // Default to enabled if we can't get the status
         isEnabled = true;
         statusDiv.className = 'status-card active';
@@ -164,80 +264,134 @@ function updateStatus() {
         statusDescription.textContent = 'Your browser fingerprint is being protected from tracking and identification.';
         toggleText.textContent = 'Disable Protection';
         toggleBtn.className = 'main-toggle';
-    });
+    }
 }
 
-// Update protection features status
-function updateProtectionFeatures() {
+// Enhanced protection features detection with retry logic
+function updateProtectionFeatures(retryCount = 0) {
+    const maxRetries = 3;
+    
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
         if (tabs[0] && canInjectScript(tabs[0])) {
             chrome.scripting.executeScript({
                 target: {tabId: tabs[0].id},
                 func: () => {
-                    // Check each protection feature
+                    // Enhanced protection detection
                     const features = {
-                        canvas: window.HTMLCanvasElement && window.HTMLCanvasElement.prototype.toDataURL,
-                        webgl: window.WebGLRenderingContext,
-                        audio: window.AudioContext || window.webkitAudioContext,
-                        fonts: window.document && window.document.fonts,
-                        navigator: window.navigator && window.navigator.userAgent,
-                        screen: window.screen,
-                        webrtc: window.RTCPeerConnection,
-                        battery: navigator.getBattery
+                        canvas: {
+                            available: window.HTMLCanvasElement && window.HTMLCanvasElement.prototype.toDataURL,
+                            protected: window.HTMLCanvasElement && window.HTMLCanvasElement.prototype.toDataURL.toString().includes('[native code]')
+                        },
+                        webgl: {
+                            available: window.WebGLRenderingContext,
+                            protected: window.WebGLRenderingContext && window.WebGLRenderingContext.prototype.getParameter.toString().includes('[native code]')
+                        },
+                        audio: {
+                            available: window.AudioContext || window.webkitAudioContext,
+                            protected: window.AudioContext && window.AudioContext.prototype.createOscillator.toString().includes('[native code]')
+                        },
+                        fonts: {
+                            available: window.document && window.document.fonts,
+                            protected: window.document && window.document.fonts && window.document.fonts.ready
+                        },
+                        navigator: {
+                            available: window.navigator && window.navigator.userAgent,
+                            protected: window.navigator && window.navigator.userAgent.includes('Chrome/120')
+                        },
+                        screen: {
+                            available: window.screen,
+                            protected: window.screen && window.screen.width === 1920
+                        },
+                        webrtc: {
+                            available: window.RTCPeerConnection,
+                            protected: window.RTCPeerConnection && window.RTCPeerConnection.prototype.createDataChannel.toString().includes('[native code]')
+                        },
+                        battery: {
+                            available: navigator.getBattery,
+                            protected: navigator.getBattery && typeof navigator.getBattery === 'function'
+                        }
                     };
 
                     // Check if our protection is active
                     const protection = window.lulzactiveProtection || window.AntiFingerprintUtils;
-                    if (protection) {
-                        return {
-                            features: features,
-                            protectionActive: true,
-                            version: protection.version || '0.10.2'
-                        };
-                    }
-                    return { features: features, protectionActive: false };
+                    return {
+                        features: features,
+                        protectionActive: !!protection,
+                        version: protection ? (protection.version || '0.10.3') : null,
+                        timestamp: Date.now()
+                    };
                 }
             }, (results) => {
                 if (results && results[0] && results[0].result) {
                     const result = results[0].result;
                     
-                    // Update protection feature indicators
-                    updateProtectionIndicator(canvasProtection, result.features.canvas);
-                    updateProtectionIndicator(webglProtection, result.features.webgl);
-                    updateProtectionIndicator(audioProtection, result.features.audio);
-                    updateProtectionIndicator(fontProtection, result.features.fonts);
-                    updateProtectionIndicator(navigatorProtection, result.features.navigator);
-                    updateProtectionIndicator(screenProtection, result.features.screen);
-                    updateProtectionIndicator(webrtcProtection, result.features.webrtc);
-                    updateProtectionIndicator(batteryProtection, result.features.battery);
+                    // Update protection feature indicators with enhanced feedback
+                    Object.entries(result.features).forEach(([key, feature]) => {
+                        const element = getProtectionElement(key);
+                        if (element) {
+                            updateProtectionIndicator(element, feature.available, feature.protected);
+                        }
+                    });
+                    
+                    performanceMetrics.lastProtectionCheck = Date.now();
+                } else if (retryCount < maxRetries) {
+                    // Retry with exponential backoff
+                    setTimeout(() => updateProtectionFeatures(retryCount + 1), Math.pow(2, retryCount) * 1000);
+                } else {
+                    logError('Failed to update protection features after retries', 'updateProtectionFeatures');
                 }
             });
         } else {
             // Set all protections to inactive for restricted pages
-            [canvasProtection, webglProtection, audioProtection, fontProtection, 
-             navigatorProtection, screenProtection, webrtcProtection, batteryProtection].forEach(el => {
-                if (el) updateProtectionIndicator(el, false);
+            const protectionElements = [
+                canvasProtection, webglProtection, audioProtection, fontProtection,
+                navigatorProtection, screenProtection, webrtcProtection, batteryProtection
+            ];
+            
+            protectionElements.forEach(el => {
+                if (el) updateProtectionIndicator(el, false, false);
             });
         }
     });
 }
 
-// Update individual protection indicator
-function updateProtectionIndicator(element, isActive) {
-    if (element) {
-        if (isActive) {
-            element.classList.add('active');
-            element.classList.remove('inactive');
-        } else {
-            element.classList.add('inactive');
-            element.classList.remove('active');
-        }
+// Helper function to get protection element by name
+function getProtectionElement(name) {
+    const elementMap = {
+        canvas: canvasProtection,
+        webgl: webglProtection,
+        audio: audioProtection,
+        font: fontProtection,
+        navigator: navigatorProtection,
+        screen: screenProtection,
+        webrtc: webrtcProtection,
+        battery: batteryProtection
+    };
+    return elementMap[name];
+}
+
+// Enhanced protection indicator with better visual feedback
+function updateProtectionIndicator(element, isAvailable, isProtected) {
+    if (!element) return;
+    
+    element.classList.remove('active', 'inactive', 'warning', 'error');
+    
+    if (!isAvailable) {
+        element.classList.add('error');
+        element.title = 'Feature not available';
+    } else if (isProtected) {
+        element.classList.add('active');
+        element.title = 'Feature protected';
+    } else {
+        element.classList.add('warning');
+        element.title = 'Feature available but not protected';
     }
 }
 
-// Update statistics with progress bars
+// Enhanced statistics with real-time updates
 function updateStats() {
-    // Get stats from current tab
+    const startTime = performance.now();
+    
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
         if (tabs[0]) {
             if (!canInjectScript(tabs[0])) {
@@ -251,85 +405,154 @@ function updateStats() {
             chrome.scripting.executeScript({
                 target: {tabId: tabs[0].id},
                 func: () => {
+                    // Enhanced statistics collection
+                    const stats = {
+                        protection: {
+                            count: 0,
+                            max: 15,
+                            details: {}
+                        },
+                        trackers: {
+                            count: 0,
+                            max: 20,
+                            details: {}
+                        },
+                        performance: {
+                            loadTime: performance.timing.loadEventEnd - performance.timing.navigationStart,
+                            domReady: performance.timing.domContentLoadedEventEnd - performance.timing.navigationStart
+                        }
+                    };
+                    
                     // Count active protections
-                    let protectionCount = 0;
-                    const maxProtections = 12;
-                    
-                    if (window.AntiFingerprintUtils) protectionCount++;
-                    if (navigator.userAgent.includes('Chrome/120')) protectionCount++;
-                    if (navigator.platform === 'Win32') protectionCount++;
-                    if (screen.width === 1920) protectionCount++;
-                    if (window.WebGLRenderingContext && window.WebGLRenderingContext.prototype.getParameter) protectionCount++;
-                    if (window.HTMLCanvasElement && window.HTMLCanvasElement.prototype.toDataURL) protectionCount++;
-                    if (window.AudioContext || window.webkitAudioContext) protectionCount++;
-                    if (navigator.languages && navigator.languages.includes('en-US')) protectionCount++;
-                    if (window.RTCPeerConnection) protectionCount++;
-                    if (navigator.getBattery) protectionCount++;
-                    if (navigator.mediaDevices) protectionCount++;
-                    if (navigator.permissions) protectionCount++;
-                    
-                    // Count blocked trackers (estimate)
-                    let trackerCount = 0;
-                    const blockedDomains = [
-                        'google-analytics.com', 'googletagmanager.com', 'facebook.com',
-                        'doubleclick.net', 'googlesyndication.com', 'amazon-adsystem.com'
+                    const protectionChecks = [
+                        { name: 'AntiFingerprintUtils', check: () => !!window.AntiFingerprintUtils },
+                        { name: 'UserAgent', check: () => navigator.userAgent.includes('Chrome/120') },
+                        { name: 'Platform', check: () => navigator.platform === 'Win32' },
+                        { name: 'Screen', check: () => screen.width === 1920 && screen.height === 1080 },
+                        { name: 'WebGL', check: () => window.WebGLRenderingContext && window.WebGLRenderingContext.prototype.getParameter },
+                        { name: 'Canvas', check: () => window.HTMLCanvasElement && window.HTMLCanvasElement.prototype.toDataURL },
+                        { name: 'Audio', check: () => window.AudioContext || window.webkitAudioContext },
+                        { name: 'Languages', check: () => navigator.languages && navigator.languages.includes('en-US') },
+                        { name: 'WebRTC', check: () => window.RTCPeerConnection },
+                        { name: 'Battery', check: () => navigator.getBattery },
+                        { name: 'MediaDevices', check: () => navigator.mediaDevices },
+                        { name: 'Permissions', check: () => navigator.permissions },
+                        { name: 'ServiceWorker', check: () => 'serviceWorker' in navigator },
+                        { name: 'WebAssembly', check: () => typeof WebAssembly === 'object' },
+                        { name: 'SharedArrayBuffer', check: () => typeof SharedArrayBuffer !== 'undefined' }
                     ];
                     
-                    // Check for blocked scripts
-                    const scripts = document.querySelectorAll('script[src]');
-                    scripts.forEach(script => {
-                        if (blockedDomains.some(domain => script.src.includes(domain))) {
-                            trackerCount++;
+                    protectionChecks.forEach(check => {
+                        if (check.check()) {
+                            stats.protection.count++;
+                            stats.protection.details[check.name] = true;
                         }
                     });
                     
-                    return {
-                        protectionCount: protectionCount,
-                        maxProtections: maxProtections,
-                        trackerCount: trackerCount,
-                        maxTrackers: 10
-                    };
+                    // Enhanced tracker detection
+                    const trackerPatterns = [
+                        { name: 'Google Analytics', pattern: /google-analytics\.com|googletagmanager\.com/ },
+                        { name: 'Facebook', pattern: /facebook\.com|fb\.com/ },
+                        { name: 'DoubleClick', pattern: /doubleclick\.net|googlesyndication\.com/ },
+                        { name: 'Amazon', pattern: /amazon-adsystem\.com/ },
+                        { name: 'Twitter', pattern: /twitter\.com|t\.co/ },
+                        { name: 'LinkedIn', pattern: /linkedin\.com/ },
+                        { name: 'Microsoft', pattern: /microsoft\.com|bing\.com/ },
+                        { name: 'Adobe', pattern: /adobe\.com|omniture\.com/ },
+                        { name: 'Hotjar', pattern: /hotjar\.com/ },
+                        { name: 'Mixpanel', pattern: /mixpanel\.com/ },
+                        { name: 'Segment', pattern: /segment\.com/ },
+                        { name: 'Optimizely', pattern: /optimizely\.com/ },
+                        { name: 'VWO', pattern: /vwo\.com/ },
+                        { name: 'Crazy Egg', pattern: /crazyegg\.com/ },
+                        { name: 'FullStory', pattern: /fullstory\.com/ },
+                        { name: 'Intercom', pattern: /intercom\.com/ },
+                        { name: 'Drift', pattern: /drift\.com/ },
+                        { name: 'Zendesk', pattern: /zendesk\.com/ },
+                        { name: 'HubSpot', pattern: /hubspot\.com/ },
+                        { name: 'Mailchimp', pattern: /mailchimp\.com/ }
+                    ];
+                    
+                    // Check for blocked trackers
+                    const scripts = document.querySelectorAll('script[src], link[href]');
+                    scripts.forEach(script => {
+                        const url = script.src || script.href;
+                        trackerPatterns.forEach(tracker => {
+                            if (tracker.pattern.test(url)) {
+                                stats.trackers.count++;
+                                stats.trackers.details[tracker.name] = true;
+                            }
+                        });
+                    });
+                    
+                    return stats;
                 }
             }, (results) => {
                 if (results && results[0] && results[0].result) {
                     const result = results[0].result;
                     
-                    overridesCount.textContent = result.protectionCount;
-                    trackersBlocked.textContent = result.trackerCount;
+                    overridesCount.textContent = result.protection.count;
+                    trackersBlocked.textContent = result.trackers.count;
                     
-                    const protectionPercent = (result.protectionCount / result.maxProtections) * 100;
-                    const trackerPercent = Math.min((result.trackerCount / result.maxTrackers) * 100, 100);
+                    const protectionPercent = (result.protection.count / result.protection.max) * 100;
+                    const trackerPercent = Math.min((result.trackers.count / result.trackers.max) * 100, 100);
                     
                     protectionProgress.style.width = protectionPercent + '%';
                     trackerProgress.style.width = trackerPercent + '%';
+                    
+                    // Add performance metrics
+                    performanceMetrics.lastStatsUpdate = Date.now();
+                    const duration = performance.now() - startTime;
+                    if (duration > 200) {
+                        logWarning(`Stats update took ${duration.toFixed(2)}ms`, 'updateStats');
+                    }
                 }
             });
         }
     });
 }
 
-// Check userscript status
+// Enhanced userscript detection with better error handling
 function checkUserscriptStatus() {
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
         if (tabs[0] && canInjectScript(tabs[0])) {
             chrome.scripting.executeScript({
                 target: {tabId: tabs[0].id},
                 func: () => {
-                    // Check for userscript presence
-                    if (window.lulzactiveUserscript) {
+                    // Enhanced userscript detection
+                    const detection = {
+                        extension: window.lulzactiveExtension,
+                        userscript: window.lulzactiveUserscript,
+                        utils: window.AntiFingerprintUtils,
+                        timestamp: Date.now()
+                    };
+                    
+                    if (detection.userscript) {
                         return {
                             active: true,
-                            version: window.lulzactiveUserscript.version,
-                            source: 'userscript'
+                            version: detection.userscript.version,
+                            source: 'userscript',
+                            features: detection.userscript.features || []
                         };
-                    } else if (window.lulzactiveExtension) {
+                    } else if (detection.extension) {
                         return {
                             active: true,
-                            version: window.lulzactiveExtension.version,
-                            source: 'extension'
+                            version: detection.extension.version,
+                            source: 'extension',
+                            features: detection.extension.features || []
+                        };
+                    } else if (detection.utils) {
+                        return {
+                            active: true,
+                            version: detection.utils.version || 'unknown',
+                            source: 'utils',
+                            features: ['basic-protection']
                         };
                     } else {
-                        return { active: false };
+                        return { 
+                            active: false,
+                            timestamp: Date.now()
+                        };
                     }
                 }
             }, (results) => {
@@ -338,17 +561,20 @@ function checkUserscriptStatus() {
                     
                     if (result.active) {
                         userscriptStatus.className = 'userscript-status userscript-active';
-                        userscriptText.textContent = `Active (${result.source} v${result.version})`;
+                        userscriptText.textContent = `${result.source} v${result.version}`;
                         userscriptLoading.style.display = 'none';
                     } else {
                         userscriptStatus.className = 'userscript-status userscript-inactive';
                         userscriptText.textContent = 'Not detected';
                         userscriptLoading.style.display = 'none';
                     }
+                    
+                    performanceMetrics.lastUserscriptCheck = Date.now();
                 } else {
                     userscriptStatus.className = 'userscript-status userscript-inactive';
                     userscriptText.textContent = 'Error checking';
                     userscriptLoading.style.display = 'none';
+                    logError('Failed to check userscript status', 'checkUserscriptStatus');
                 }
             });
         } else {
@@ -359,66 +585,68 @@ function checkUserscriptStatus() {
     });
 }
 
-// Setup feature toggles
+// Enhanced feature toggles with better state management
 function setupFeatureToggles() {
-    // Enhanced Randomization toggle
-    if (enhancedRandomization) {
-        enhancedRandomization.addEventListener('click', function() {
-            this.classList.toggle('active');
-            const isActive = this.classList.contains('active');
-            setStorageData({ enhancedRandomization: isActive });
-            showNotification(`Enhanced randomization ${isActive ? 'enabled' : 'disabled'}`, 'success');
-        });
-    }
-
-    // Anti-Detection toggle
-    if (antiDetection) {
-        antiDetection.addEventListener('click', function() {
-            this.classList.toggle('active');
-            const isActive = this.classList.contains('active');
-            setStorageData({ antiDetection: isActive });
-            showNotification(`Anti-detection ${isActive ? 'enabled' : 'disabled'}`, 'success');
-        });
-    }
-
-    // Canvas Text Randomize toggle
-    if (canvasTextRandomize) {
-        canvasTextRandomize.addEventListener('click', function() {
-            this.classList.toggle('active');
-            const isActive = this.classList.contains('active');
-            setStorageData({ canvasTextRandomize: isActive });
-            showNotification(`Canvas text randomization ${isActive ? 'enabled' : 'disabled'}`, 'success');
-        });
-    }
-
-    // Font Randomize toggle
-    if (fontRandomize) {
-        fontRandomize.addEventListener('click', function() {
-            this.classList.toggle('active');
-            const isActive = this.classList.contains('active');
-            setStorageData({ fontRandomize: isActive });
-            showNotification(`Font randomization ${isActive ? 'enabled' : 'disabled'}`, 'success');
-        });
-    }
+    const toggles = [
+        { element: enhancedRandomization, key: 'enhancedRandomization', name: 'Enhanced Randomization' },
+        { element: antiDetection, key: 'antiDetection', name: 'Anti-Detection' },
+        { element: canvasTextRandomize, key: 'canvasTextRandomize', name: 'Canvas Text Randomize' },
+        { element: fontRandomize, key: 'fontRandomize', name: 'Font Randomize' }
+    ];
+    
+    toggles.forEach(toggle => {
+        if (toggle.element) {
+            toggle.element.addEventListener('click', function() {
+                this.classList.toggle('active');
+                const isActive = this.classList.contains('active');
+                
+                setStorageData({ [toggle.key]: isActive }).then(success => {
+                    if (success) {
+                        showNotification(`${toggle.name} ${isActive ? 'enabled' : 'disabled'}`, 'success');
+                    } else {
+                        showNotification(`Failed to save ${toggle.name} setting`, 'error');
+                        // Revert the toggle state
+                        this.classList.toggle('active');
+                    }
+                });
+            });
+        }
+    });
 
     // Load saved toggle states
     getStorageData(['enhancedRandomization', 'antiDetection', 'canvasTextRandomize', 'fontRandomize']).then(result => {
-        if (result.enhancedRandomization !== false && enhancedRandomization) enhancedRandomization.classList.add('active');
-        if (result.antiDetection !== false && antiDetection) antiDetection.classList.add('active');
-        if (result.canvasTextRandomize !== false && canvasTextRandomize) canvasTextRandomize.classList.add('active');
-        if (result.fontRandomize !== false && fontRandomize) fontRandomize.classList.add('active');
+        toggles.forEach(toggle => {
+            if (toggle.element && result[toggle.key] !== false) {
+                toggle.element.classList.add('active');
+            }
+        });
     });
 }
 
-// Toggle protection
+// Enhanced protection toggle with confirmation
 function toggleProtection() {
-    isEnabled = !isEnabled;
-    setStorageData({ protectionEnabled: isEnabled });
-    updateStatus();
-    showNotification(`Protection ${isEnabled ? 'enabled' : 'disabled'}`, 'success');
+    const newState = !isEnabled;
+    const action = newState ? 'enable' : 'disable';
+    
+    if (!newState) {
+        // Ask for confirmation when disabling
+        if (!confirm('Are you sure you want to disable protection? This will make your browser fingerprint vulnerable to tracking.')) {
+            return;
+        }
+    }
+    
+    setStorageData({ protectionEnabled: newState }).then(success => {
+        if (success) {
+            isEnabled = newState;
+            updateStatus();
+            showNotification(`Protection ${action}d`, 'success');
+        } else {
+            showNotification(`Failed to ${action} protection`, 'error');
+        }
+    });
 }
 
-// Test protection
+// Enhanced protection test with detailed results
 function testProtection() {
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
         if (tabs[0]) {
@@ -427,34 +655,87 @@ function testProtection() {
                 return;
             }
             
+            showNotification('Running protection tests...', 'info');
+            
             chrome.scripting.executeScript({
                 target: {tabId: tabs[0].id},
                 func: () => {
-                    // Run protection tests
+                    // Comprehensive protection tests
                     const tests = {
-                        userAgent: navigator.userAgent.includes('Chrome/120'),
-                        platform: navigator.platform === 'Win32',
-                        screen: screen.width === 1920 && screen.height === 1080,
-                        webgl: window.WebGLRenderingContext !== undefined,
-                        canvas: window.HTMLCanvasElement !== undefined,
-                        audio: window.AudioContext !== undefined || window.webkitAudioContext !== undefined,
-                        protection: window.AntiFingerprintUtils !== undefined
+                        userAgent: {
+                            test: navigator.userAgent.includes('Chrome/120'),
+                            description: 'User Agent Spoofing'
+                        },
+                        platform: {
+                            test: navigator.platform === 'Win32',
+                            description: 'Platform Spoofing'
+                        },
+                        screen: {
+                            test: screen.width === 1920 && screen.height === 1080,
+                            description: 'Screen Resolution Spoofing'
+                        },
+                        webgl: {
+                            test: window.WebGLRenderingContext !== undefined,
+                            description: 'WebGL Protection'
+                        },
+                        canvas: {
+                            test: window.HTMLCanvasElement !== undefined,
+                            description: 'Canvas Protection'
+                        },
+                        audio: {
+                            test: window.AudioContext !== undefined || window.webkitAudioContext !== undefined,
+                            description: 'Audio Context Protection'
+                        },
+                        protection: {
+                            test: window.AntiFingerprintUtils !== undefined,
+                            description: 'Anti-Fingerprint Utils'
+                        },
+                        languages: {
+                            test: navigator.languages && navigator.languages.includes('en-US'),
+                            description: 'Language Spoofing'
+                        },
+                        timezone: {
+                            test: Intl.DateTimeFormat().resolvedOptions().timeZone === 'America/New_York',
+                            description: 'Timezone Spoofing'
+                        },
+                        hardwareConcurrency: {
+                            test: navigator.hardwareConcurrency === 8,
+                            description: 'CPU Cores Spoofing'
+                        }
                     };
                     
-                    const passedTests = Object.values(tests).filter(Boolean).length;
-                    const totalTests = Object.keys(tests).length;
+                    const results = Object.entries(tests).map(([key, test]) => ({
+                        name: key,
+                        passed: test.test,
+                        description: test.description
+                    }));
+                    
+                    const passedTests = results.filter(r => r.passed).length;
+                    const totalTests = results.length;
                     
                     return {
-                        tests: tests,
+                        results: results,
                         passed: passedTests,
                         total: totalTests,
-                        percentage: Math.round((passedTests / totalTests) * 100)
+                        percentage: Math.round((passedTests / totalTests) * 100),
+                        timestamp: Date.now()
                     };
                 }
             }, (results) => {
                 if (results && results[0] && results[0].result) {
                     const result = results[0].result;
-                    showNotification(`Protection test: ${result.passed}/${result.total} passed (${result.percentage}%)`, 'success');
+                    
+                    // Show detailed results
+                    const passedTests = result.results.filter(r => r.passed);
+                    const failedTests = result.results.filter(r => !r.passed);
+                    
+                    let message = `Protection test: ${result.passed}/${result.total} passed (${result.percentage}%)`;
+                    
+                    if (failedTests.length > 0) {
+                        message += `\nFailed: ${failedTests.map(t => t.description).join(', ')}`;
+                    }
+                    
+                    showNotification(message, result.percentage >= 80 ? 'success' : 'warning');
                 } else {
                     showNotification('Failed to run protection test', 'error');
                 }
@@ -463,53 +744,96 @@ function testProtection() {
     });
 }
 
-// Toggle debug mode
+// Enhanced debug mode toggle
 function toggleDebugMode() {
     debugMode = !debugMode;
-    setStorageData({ debugMode: debugMode });
-    updateStatus();
-    showNotification(`Debug mode ${debugMode ? 'enabled' : 'disabled'}`, 'success');
+    setStorageData({ debugMode: debugMode }).then(success => {
+        if (success) {
+            updateStatus();
+            showNotification(`Debug mode ${debugMode ? 'enabled' : 'disabled'}`, 'success');
+            
+            if (debugMode) {
+                // Enable real-time updates
+                startRealTimeUpdates();
+            } else {
+                // Disable real-time updates
+                stopRealTimeUpdates();
+            }
+        } else {
+            showNotification('Failed to toggle debug mode', 'error');
+        }
+    });
 }
 
-// Reset protection
+// Enhanced reset with confirmation and progress
 function resetProtection() {
-    if (confirm('Are you sure you want to reset all protection settings?')) {
-        setStorageData({
+    if (confirm('Are you sure you want to reset all protection settings? This will restore all settings to their default values.')) {
+        showNotification('Resetting protection settings...', 'info');
+        
+        const defaultSettings = {
             protectionEnabled: true,
             debugMode: false,
             enhancedRandomization: true,
             antiDetection: true,
             canvasTextRandomize: true,
             fontRandomize: true
+        };
+        
+        setStorageData(defaultSettings).then(success => {
+            if (success) {
+                // Clear cache
+                storageCache.clear();
+                
+                // Update UI
+                updateStatus();
+                setupFeatureToggles();
+                updateProtectionFeatures();
+                updateStats();
+                checkUserscriptStatus();
+                
+                showNotification('Protection settings reset to defaults', 'success');
+            } else {
+                showNotification('Failed to reset protection settings', 'error');
+            }
         });
-        updateStatus();
-        setupFeatureToggles();
-        showNotification('Protection settings reset to defaults', 'success');
     }
 }
 
-// Export logs
+// Enhanced export with better formatting and error handling
 function exportLogs() {
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
         if (tabs[0] && canInjectScript(tabs[0])) {
+            showNotification('Collecting protection data...', 'info');
+            
             chrome.scripting.executeScript({
                 target: {tabId: tabs[0].id},
                 func: () => {
-                    // Collect protection data
+                    // Enhanced data collection
                     const data = {
                         timestamp: new Date().toISOString(),
                         url: window.location.href,
                         userAgent: navigator.userAgent,
                         platform: navigator.platform,
+                        languages: navigator.languages,
                         screen: {
                             width: screen.width,
                             height: screen.height,
-                            colorDepth: screen.colorDepth
+                            colorDepth: screen.colorDepth,
+                            pixelDepth: screen.pixelDepth,
+                            availWidth: screen.availWidth,
+                            availHeight: screen.availHeight
                         },
+                        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                        hardwareConcurrency: navigator.hardwareConcurrency,
+                        deviceMemory: navigator.deviceMemory,
                         protection: {
                             extension: window.lulzactiveExtension,
                             userscript: window.lulzactiveUserscript,
                             utils: window.AntiFingerprintUtils
+                        },
+                        performance: {
+                            loadTime: performance.timing.loadEventEnd - performance.timing.navigationStart,
+                            domReady: performance.timing.domContentLoadedEventEnd - performance.timing.navigationStart
                         }
                     };
                     
@@ -518,17 +842,24 @@ function exportLogs() {
             }, (results) => {
                 if (results && results[0] && results[0].result) {
                     const data = results[0].result;
+                    
+                    // Add performance metrics
+                    data.performanceMetrics = performanceMetrics;
+                    
                     const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
                     const url = URL.createObjectURL(blob);
                     
                     chrome.downloads.download({
                         url: url,
                         filename: `protection-logs-${new Date().toISOString().split('T')[0]}.json`
+                    }).then(() => {
+                        showNotification('Protection logs exported successfully', 'success');
+                    }).catch(error => {
+                        logError(error, 'exportLogs - download');
+                        showNotification('Failed to export logs', 'error');
                     });
-                    
-                    showNotification('Protection logs exported', 'success');
                 } else {
-                    showNotification('Failed to export logs', 'error');
+                    showNotification('Failed to collect protection data', 'error');
                 }
             });
         } else {
@@ -537,43 +868,143 @@ function exportLogs() {
     });
 }
 
+// Real-time updates for debug mode
+function startRealTimeUpdates() {
+    if (updateInterval) {
+        clearInterval(updateInterval);
+    }
+    
+    updateInterval = setInterval(() => {
+        if (debugMode) {
+            updateProtectionFeatures();
+            updateStats();
+            checkUserscriptStatus();
+        }
+    }, 5000); // Update every 5 seconds in debug mode
+}
+
+function stopRealTimeUpdates() {
+    if (updateInterval) {
+        clearInterval(updateInterval);
+        updateInterval = null;
+    }
+}
+
+// Enhanced initialization with better error handling
+function initializePopup() {
+    try {
+        // Add CSS animations
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideIn {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(100%); opacity: 0; }
+            }
+            .protection-item.error {
+                background: #ffebee;
+                border-color: #f44336;
+            }
+            .protection-item.warning {
+                background: #fff3e0;
+                border-color: #ff9800;
+            }
+        `;
+        document.head.appendChild(style);
+        
+        // Initialize all components
+        updateStatus();
+        updateStats();
+        updateProtectionFeatures();
+        checkUserscriptStatus();
+        setupFeatureToggles();
+
+        // Set up event listeners with error handling
+        const eventListeners = [
+            { element: toggleBtn, event: 'click', handler: toggleProtection },
+            { element: testBtn, event: 'click', handler: testProtection },
+            { element: debugBtn, event: 'click', handler: toggleDebugMode },
+            { element: resetBtn, event: 'click', handler: resetProtection },
+            { element: exportBtn, event: 'click', handler: exportLogs }
+        ];
+        
+        eventListeners.forEach(({ element, event, handler }) => {
+            if (element) {
+                element.addEventListener(event, handler);
+            } else {
+                logWarning(`Event listener not set: ${event}`, 'initializePopup');
+            }
+        });
+        
+        isInitialized = true;
+        showNotification('Popup initialized successfully', 'success');
+        
+    } catch (error) {
+        logError(error, 'initializePopup');
+        showNotification('Failed to initialize popup', 'error');
+    }
+}
+
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
-    // Get DOM elements
-    statusDiv = document.getElementById('status');
-    statusIcon = document.getElementById('statusIcon');
-    statusText = document.getElementById('statusText');
-    statusDescription = document.getElementById('statusDescription');
-    toggleBtn = document.getElementById('toggleBtn');
-    toggleText = document.getElementById('toggleText');
-    overridesCount = document.getElementById('overridesCount');
-    trackersBlocked = document.getElementById('trackersBlocked');
-    protectionProgress = document.getElementById('protectionProgress');
-    trackerProgress = document.getElementById('trackerProgress');
-    testBtn = document.getElementById('testBtn');
-    debugBtn = document.getElementById('debugBtn');
-    resetBtn = document.getElementById('resetBtn');
-    exportBtn = document.getElementById('exportBtn');
-    userscriptStatus = document.getElementById('userscriptStatus');
-    userscriptText = document.getElementById('userscriptText');
-    userscriptLoading = document.getElementById('userscriptLoading');
+    try {
+        // Get DOM elements with validation
+        const elements = {
+            statusDiv: 'status',
+            statusIcon: 'statusIcon',
+            statusText: 'statusText',
+            statusDescription: 'statusDescription',
+            toggleBtn: 'toggleBtn',
+            toggleText: 'toggleText',
+            overridesCount: 'overridesCount',
+            trackersBlocked: 'trackersBlocked',
+            protectionProgress: 'protectionProgress',
+            trackerProgress: 'trackerProgress',
+            testBtn: 'testBtn',
+            debugBtn: 'debugBtn',
+            resetBtn: 'resetBtn',
+            exportBtn: 'exportBtn',
+            userscriptStatus: 'userscriptStatus',
+            userscriptText: 'userscriptText',
+            userscriptLoading: 'userscriptLoading',
+            canvasProtection: 'canvasProtection',
+            webglProtection: 'webglProtection',
+            audioProtection: 'audioProtection',
+            fontProtection: 'fontProtection',
+            navigatorProtection: 'navigatorProtection',
+            screenProtection: 'screenProtection',
+            webrtcProtection: 'webrtcProtection',
+            batteryProtection: 'batteryProtection',
+            enhancedRandomization: 'enhancedRandomization',
+            antiDetection: 'antiDetection',
+            canvasTextRandomize: 'canvasTextRandomize',
+            fontRandomize: 'fontRandomize'
+        };
+        
+        // Assign elements with validation
+        Object.entries(elements).forEach(([variable, id]) => {
+            const element = document.getElementById(id);
+            if (element) {
+                window[variable] = element;
+            } else {
+                logWarning(`Element not found: ${id}`, 'DOMContentLoaded');
+            }
+        });
+        
+        // Initialize popup
+        initializePopup();
+        
+    } catch (error) {
+        logError(error, 'DOMContentLoaded');
+        showNotification('Failed to load popup', 'error');
+    }
+});
 
-    // Protection feature elements
-    canvasProtection = document.getElementById('canvasProtection');
-    webglProtection = document.getElementById('webglProtection');
-    audioProtection = document.getElementById('audioProtection');
-    fontProtection = document.getElementById('fontProtection');
-    navigatorProtection = document.getElementById('navigatorProtection');
-    screenProtection = document.getElementById('screenProtection');
-    webrtcProtection = document.getElementById('webrtcProtection');
-    batteryProtection = document.getElementById('batteryProtection');
-
-    // Feature toggle elements
-    enhancedRandomization = document.getElementById('enhancedRandomization');
-    antiDetection = document.getElementById('antiDetection');
-    canvasTextRandomize = document.getElementById('canvasTextRandomize');
-    fontRandomize = document.getElementById('fontRandomize');
-
-    // Initialize popup
-    initializePopup();
+// Cleanup on page unload
+window.addEventListener('beforeunload', function() {
+    stopRealTimeUpdates();
+    storageCache.clear();
 });
