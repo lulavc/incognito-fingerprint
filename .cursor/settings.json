@@ -138,6 +138,28 @@
     "cmd": {
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-cmd"]
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+    },
+    "sequential-thinking-tools": {
+      "command": "npx",
+      "args": ["-y", "mcp-sequentialthinking-tools"]
+    },
+    "mem100x": {
+      "command": "npx",
+      "args": ["-y", "mem100x"],
+      "env": {
+        "MEM100X_DB_PATH": "${workspaceFolder}/.mem100x"
+      }
+    },
+    "memory-keeper": {
+      "command": "npx",
+      "args": ["-y", "mcp-memory-keeper"],
+      "env": {
+        "MCP_MEMORY_KEEPER_PATH": "${workspaceFolder}/.memory-keeper"
+      }
     }
   },
   "cursor.general.enableMCP": true,
@@ -170,7 +192,11 @@
     "zsh": true,
     "bash": true,
     "powershell": false,
-    "cmd": false
+    "cmd": false,
+    "sequential-thinking": true,
+    "sequential-thinking-tools": true,
+    "mem100x": true,
+    "memory-keeper": true
   },
   "cursor.general.mcpServerTimeout": 30000,
   "cursor.general.mcpMaxConcurrentRequests": 10,
