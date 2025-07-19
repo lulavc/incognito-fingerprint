@@ -136,9 +136,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 chrome.scripting.executeScript({
                     target: {tabId: tabs[0].id},
                     func: () => {
-                        // Check if userscript is active
-                        if (window.AntiFingerprintUtils) {
+                        // Check if userscript is active by looking for specific userscript indicators
+                        const userscriptIndicators = {
+                            // Check if the userscript's global object exists
+                            hasUserscriptGlobal: typeof window.lulzactiveUserscript !== 'undefined',
+                            // Check if the userscript has applied its own protection
+                            hasUserscriptProtection: window.AntiFingerprintUtils && window.AntiFingerprintUtils.isUserscript,
+                            // Check if the userscript's version is available
+                            hasUserscriptVersion: typeof window.lulzactiveVersion !== 'undefined',
+                            // Check if the userscript's name is in the page
+                            hasUserscriptName: document.querySelector('script[src*="lulzactive"]') !== null
+                        };
+                        
+                        // Determine status based on indicators
+                        if (userscriptIndicators.hasUserscriptGlobal || userscriptIndicators.hasUserscriptProtection) {
                             return 'Active';
+                        } else if (window.AntiFingerprintUtils) {
+                            return 'Extension Only'; // Only extension protection is active
                         } else {
                             return 'Inactive';
                         }
@@ -149,6 +163,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (status === 'Active') {
                             userscriptStatus.textContent = '🟢 Userscript: Active';
                             userscriptStatus.className = 'userscript-status userscript-active';
+                        } else if (status === 'Extension Only') {
+                            userscriptStatus.textContent = '🟡 Userscript: Extension Only';
+                            userscriptStatus.className = 'userscript-status userscript-inactive';
                         } else {
                             userscriptStatus.textContent = '🟡 Userscript: Inactive';
                             userscriptStatus.className = 'userscript-status userscript-inactive';

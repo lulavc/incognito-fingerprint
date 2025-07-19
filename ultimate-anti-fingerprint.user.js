@@ -20,6 +20,18 @@ CRITICAL: The HTTP headers MUST match the JavaScript spoofing for perfect finger
 Use a User-Agent Switcher extension or browser settings to set these headers.
 */
 
+// Add userscript indicators for extension detection
+window.lulzactiveUserscript = {
+    version: '0.4',
+    name: 'lulzactive',
+    timestamp: Date.now()
+};
+
+window.lulzactiveVersion = '0.4';
+
+// Mark this as a userscript for extension detection
+window.lulzactiveIsUserscript = true;
+
 (function() {
     'use strict';
 

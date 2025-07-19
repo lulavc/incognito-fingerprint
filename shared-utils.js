@@ -512,37 +512,32 @@
     }
 
     // --- Export for use in other scripts ---
+    // Expose utilities globally for popup access
     window.AntiFingerprintUtils = {
-        profile,
-        applyAllProtections,
-        applyCoreProtection,
-        applyCanvasProtection,
-        applyWebGLProtection,
-        applyAudioProtection,
-        applyFontProtection,
-        applyAdditionalProtections,
-        applyAntiTrackingProtection,
-        spoof,
+        initialize: applyAllProtections,
         setDebugMode: function(enabled) {
             DEBUG_MODE = enabled;
             if (enabled) {
                 console.log('lulzactive: Debug mode enabled');
             }
         },
-        getStats: function() {
-            return {
-                protections: {
-                    core: true,
-                    canvas: true,
-                    webgl: true,
-                    audio: true,
-                    font: true,
-                    antiTracking: true
-                },
-                profile: profile,
-                debugMode: DEBUG_MODE
-            };
-        }
+        getProfile: () => profile,
+        getStats: () => ({
+            protections: {
+                core: true,
+                canvas: true,
+                webgl: true,
+                audio: true,
+                font: true,
+                antiTracking: true
+            },
+            profile: profile,
+            debugMode: DEBUG_MODE
+        }),
+        // Mark whether this is from extension or userscript
+        isUserscript: typeof window.lulzactiveIsUserscript !== 'undefined',
+        isExtension: typeof window.lulzactiveIsUserscript === 'undefined',
+        source: typeof window.lulzactiveIsUserscript !== 'undefined' ? 'userscript' : 'extension'
     };
 
     // --- Auto-apply if this script is loaded directly ---
