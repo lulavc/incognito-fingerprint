@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Incognito Fingerprint Protection",
-  "version": "0.10.3",
-  "description": "Advanced anti-fingerprinting protection with realistic Chrome/Windows spoofing",
+  "version": "1.0.0",
+  "description": "Advanced anti-fingerprinting protection with realistic Chrome/Windows spoofing, enhanced privacy, comprehensive tracking prevention, and cutting-edge fingerprinting resistance",
   "permissions": [
     "storage",
     "webRequest",
